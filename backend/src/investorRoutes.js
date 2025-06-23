@@ -8,11 +8,17 @@ router.get('/me', async (req, res) => {
   const investorId = req.query.id;
   if (!investorId) return res.status(400).json({ message: 'Investor id required.' });
   try {
-    const [investorRows] = await pool.query('SELECT id, name, email, total_contributions, percentage_share, status FROM investors WHERE id = ?', [investorId]);
+    const [investorRows] = await pool.query('SELECT id, name, email, total_contributions, status FROM investors WHERE id = ?', [investorId]);
     if (investorRows.length === 0) return res.status(404).json({ message: 'Investor not found.' });
     // Get transactions
     const [transactions] = await pool.query('SELECT * FROM transactions WHERE investor_id = ?', [investorId]);
-    res.json({ ...investorRows[0], transactions });
+    // Calculate percentage share
+    const [[{ totalAll }]] = await pool.query('SELECT SUM(total_contributions) as totalAll FROM investors');
+    let percentage_share = 0;
+    if (totalAll && totalAll > 0) {
+      percentage_share = ((investorRows[0].total_contributions || 0) / totalAll) * 100;
+    }
+    res.json({ ...investorRows[0], percentage_share, transactions });
   } catch (err) {
     res.status(500).json({ message: 'Server error.' });
   }
