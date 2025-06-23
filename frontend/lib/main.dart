@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'pages/login_screen.dart';
-import 'pages/investor_dashboard.dart';
+import 'pages/investor/investor_dashboard.dart';
 import 'pages/admin_login_screen.dart';
 import 'pages/admin_dashboard.dart';
 import 'pages/AdminRegister.dart';
