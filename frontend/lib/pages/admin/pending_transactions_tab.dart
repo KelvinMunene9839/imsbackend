@@ -105,7 +105,7 @@ class _PendingTransactionsTabState extends State<PendingTransactionsTab> {
                             IconButton(
                               icon: const Icon(
                                 Icons.check,
-                                color: Colors.green,
+                                color: Colors.white,
                               ),
                               onPressed: () =>
                                   approveOrReject(tx['id'], 'approved'),

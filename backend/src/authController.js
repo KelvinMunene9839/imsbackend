@@ -34,11 +34,16 @@ export async function loginAdmin(req, res) {
     const [rows] = await pool.query('SELECT * FROM admins WHERE email = ?', [email]);
     if (rows.length === 0) return res.status(400).json({ message: 'Invalid credentials.' });
     const admin = rows[0];
+    if (!admin.password_hash) {
+      console.error('Admin user has no password hash:', admin);
+      return res.status(500).json({ message: 'Server error: password hash missing.' });
+    }
     const match = await bcrypt.compare(password, admin.password_hash);
     if (!match) return res.status(400).json({ message: 'Invalid credentials.' });
     // TODO: Add 2FA check here
     res.json({ message: 'Login successful.' });
   } catch (err) {
+    console.error('Error in loginAdmin:', err);
     res.status(500).json({ message: 'Server error.' });
   }
 }

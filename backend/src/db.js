@@ -11,5 +11,7 @@ const pool = mysql.createPool({
   connectionLimit: 10,
   queueLimit: 0
 });
+if(pool) console.log('connected');
+else console.log('failed to connect');
 
 export default pool;

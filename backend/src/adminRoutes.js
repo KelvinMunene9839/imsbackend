@@ -13,6 +13,7 @@ router.get('/transactions/pending', async (req, res) => {
   }
 });
 
+
 // Approve or reject a transaction
 router.patch('/transaction/:id', async (req, res) => {
   const { status } = req.body; // 'approved' or 'rejected'
