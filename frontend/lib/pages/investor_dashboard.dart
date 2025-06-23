@@ -28,7 +28,7 @@ class _InvestorDashboardState extends State<InvestorDashboard> {
       isLoading = true;
     });
     final response = await http.get(
-      Uri.parse('$backendBaseUrl/api/investor/me?id=1'),
+      Uri.parse('backendBaseUrl/api/investor/me?id=1'),
     );
     if (response.statusCode == 200) {
       setState(() {

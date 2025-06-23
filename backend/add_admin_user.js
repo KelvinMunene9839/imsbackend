@@ -7,8 +7,8 @@ dotenv.config();
 async function addAdminUser() {
   const connection = await mysql.createConnection({
     host: process.env.DB_HOST || 'localhost',
-    user: process.env.DB_USER || 'caleb',
-    password: process.env.DB_PASSWORD || 'cA1eb@2612-2006',
+    user: process.env.DB_USER || 'root',
+    password: process.env.DB_PASSWORD || '',
     database: process.env.DB_NAME || 'ims',
   });
 
