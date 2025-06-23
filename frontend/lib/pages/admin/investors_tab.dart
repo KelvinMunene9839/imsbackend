@@ -269,6 +269,7 @@ class _InvestorsTabState extends State<InvestorsTab> {
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF18332B),
+                      foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -344,7 +345,7 @@ class _InvestorsTabState extends State<InvestorsTab> {
                         IconButton(
                           icon: const Icon(
                             Icons.visibility,
-                            color: Colors.blue,
+                            color: const Color(0xFF18332B),
                           ),
                           tooltip: 'View',
                           onPressed: () {
@@ -366,7 +367,7 @@ class _InvestorsTabState extends State<InvestorsTab> {
                           },
                         ),
                         IconButton(
-                          icon: const Icon(Icons.edit, color: Colors.orange),
+                          icon: const Icon(Icons.edit, color:const Color(0xFF18332B)),
                           tooltip: 'Edit',
                           onPressed: () => editInvestor(investor),
                         ),
