@@ -16,7 +16,7 @@ router.get('/me', async (req, res) => {
     const [[{ totalAll }]] = await pool.query('SELECT SUM(total_contributions) as totalAll FROM investors');
     let percentage_share = 0;
     if (totalAll && totalAll > 0) {
-      percentage_share = ((investorRows[0].total_contributions || 0) / totalAll) * 100;
+      percentage_share = Number((((investorRows[0].total_contributions || 0) / totalAll) * 100).toFixed(2));
     }
     res.json({ ...investorRows[0], percentage_share, transactions });
   } catch (err) {
