@@ -13,7 +13,9 @@ class OverviewTab extends StatefulWidget {
 }
 
 class _OverviewTabState extends State<OverviewTab> {
-  final ApiClient apiClient = ApiClient(baseUrl: '$backendBaseUrl/api/investor');
+  final ApiClient apiClient = ApiClient(
+    baseUrl: '$backendBaseUrl/api/investor',
+  );
   Map<String, dynamic>? investorData;
   bool isLoading = true;
   bool isEditing = false;
@@ -28,7 +30,10 @@ class _OverviewTabState extends State<OverviewTab> {
   }
 
   Future<void> fetchInvestor() async {
-    setState(() { isLoading = true; error = null; });
+    setState(() {
+      isLoading = true;
+      error = null;
+    });
     try {
       // TODO: Replace with actual investor id from auth/session
       const investorId = '1';
@@ -56,7 +61,9 @@ class _OverviewTabState extends State<OverviewTab> {
   }
 
   Future<void> saveProfile() async {
-    setState(() { isLoading = true; });
+    setState(() {
+      isLoading = true;
+    });
     try {
       const investorId = '1';
       final res = await apiClient.patch('/me?id=$investorId', {
@@ -64,18 +71,26 @@ class _OverviewTabState extends State<OverviewTab> {
         'email': emailController.text,
       });
       if (res.statusCode == 200) {
-        setState(() { isEditing = false; });
+        setState(() {
+          isEditing = false;
+        });
         await fetchInvestor();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile updated.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Profile updated.')));
       } else {
-        setState(() { error = 'Failed to update profile.'; });
+        setState(() {
+          error = 'Failed to update profile.';
+        });
       }
     } catch (e) {
-      setState(() { error = 'Error: $e'; });
+      setState(() {
+        error = 'Error: $e';
+      });
     } finally {
-      setState(() { isLoading = false; });
+      setState(() {
+        isLoading = false;
+      });
     }
   }
 
