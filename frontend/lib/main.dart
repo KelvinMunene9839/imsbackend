@@ -18,6 +18,7 @@ class IMSApp extends StatelessWidget {
       title: 'Investor Management System',
       theme: ThemeData(primarySwatch: Colors.blue),
       initialRoute: '/',
+      debugShowCheckedModeBanner: false,
       routes: {
         '/': (context) => const HomeSelector(),
         '/login': (context) => const LoginScreen(),

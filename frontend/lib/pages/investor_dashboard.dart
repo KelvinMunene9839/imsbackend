@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:frontend/config.dart';
 
 class InvestorDashboard extends StatefulWidget {
   const InvestorDashboard({super.key});
@@ -27,7 +28,7 @@ class _InvestorDashboardState extends State<InvestorDashboard> {
       isLoading = true;
     });
     final response = await http.get(
-      Uri.parse('backendBaseUrl/api/investor/me?id=1'),
+      Uri.parse('$backendBaseUrl/api/investor/me?id=1'),
     );
     if (response.statusCode == 200) {
       setState(() {
