@@ -6,9 +6,7 @@ class ApiClient {
   final Map<String, String> defaultHeaders;
 
   ApiClient({required this.baseUrl})
-      : defaultHeaders = {
-          'Content-Type': 'application/json',
-        };
+    : defaultHeaders = {'Content-Type': 'application/json'};
 
   Future<http.Response> get(String endpoint) {
     final url = Uri.parse('$baseUrl$endpoint');
@@ -28,5 +26,10 @@ class ApiClient {
   Future<http.Response> patch(String endpoint, Map<String, dynamic> body) {
     final url = Uri.parse('$baseUrl$endpoint');
     return http.patch(url, headers: defaultHeaders, body: jsonEncode(body));
+  }
+
+  Future<http.Response> delete(String endpoint) {
+    final url = Uri.parse('$baseUrl$endpoint');
+    return http.delete(url, headers: defaultHeaders);
   }
 }
