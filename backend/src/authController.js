@@ -22,7 +22,8 @@ export async function loginInvestor(req, res) {
     const investor = rows[0];
     const match = await bcrypt.compare(password, investor.password_hash);
     if (!match) return res.status(400).json({ message: 'Invalid credentials.' });
-    res.json({ message: 'Login successful.' });
+    // Return id, name, email for frontend
+    res.json({ id: investor.id, name: investor.name, email: investor.email, message: 'Login successful.' });
   } catch (err) {
     res.status(500).json({ message: 'Server error.' });
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../api_client.dart';
 import '../../config.dart';
 import '../../widgets/ims_card.dart';
@@ -13,7 +14,9 @@ class ContributionsTab extends StatefulWidget {
 }
 
 class _ContributionsTabState extends State<ContributionsTab> {
-  final ApiClient apiClient = ApiClient(baseUrl: '$backendBaseUrl/investor');
+  final ApiClient apiClient = ApiClient(
+    baseUrl: '$backendBaseUrl/api/investor',
+  );
   List<Map<String, dynamic>> _contributions = [];
   bool _loading = true;
   String? _error;
@@ -28,14 +31,25 @@ class _ContributionsTabState extends State<ContributionsTab> {
     _fetchContributions();
   }
 
+  Future<String?> getInvestorId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('investorId');
+  }
+
   Future<void> _fetchContributions() async {
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
-      // TODO: Replace with actual investor id from auth/session
-      const investorId = '1';
+      final investorId = await getInvestorId();
+      if (investorId == null) {
+        setState(() {
+          _error = 'No investor ID found. Please log in again.';
+          _loading = false;
+        });
+        return;
+      }
       final res = await apiClient.get('/me?id=$investorId');
       if (res.statusCode == 200) {
         final data = Map<String, dynamic>.from(jsonDecode(res.body));
@@ -63,7 +77,16 @@ class _ContributionsTabState extends State<ContributionsTab> {
     if (_amountController.text.isEmpty || _selectedDate == null) return;
     setState(() => _submitting = true);
     try {
-      const investorId = '1'; // TODO: Replace with actual investor id
+      final investorId = await getInvestorId();
+      if (investorId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No investor ID found. Please log in again.'),
+          ),
+        );
+        setState(() => _submitting = false);
+        return;
+      }
       final res = await apiClient.post('/transaction?id=$investorId', {
         'amount': double.tryParse(_amountController.text) ?? 0,
         'date': _selectedDate!.toIso8601String().substring(0, 10),

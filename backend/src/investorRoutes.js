@@ -25,6 +25,9 @@ router.post('/transaction', async (req, res) => {
   const { amount, date } = req.body;
   try {
     await pool.query('INSERT INTO transactions (investor_id, amount, date, status) VALUES (?, ?, ?, ?)', [investorId, amount, date, 'pending']);
+    // Update total_contributions for the investor (sum of all approved and pending transactions)
+    const [[{ total }]] = await pool.query('SELECT SUM(amount) as total FROM transactions WHERE investor_id = ?', [investorId]);
+    await pool.query('UPDATE investors SET total_contributions = ? WHERE id = ?', [total || 0, investorId]);
     res.status(201).json({ message: 'Transaction submitted for approval.' });
   } catch (err) {
     res.status(500).json({ message: 'Server error.' });

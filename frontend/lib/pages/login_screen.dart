@@ -3,6 +3,7 @@ import '../widgets/app_theme.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../config.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -34,6 +35,12 @@ class _LoginScreenState extends State<LoginScreen> {
       isLoading = false;
     });
     if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      final investorId = data['id']?.toString();
+      if (investorId != null) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('investorId', investorId);
+      }
       Navigator.pushReplacementNamed(context, '/investor');
     } else {
       setState(() {
