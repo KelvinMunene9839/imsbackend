@@ -117,10 +117,12 @@ class _OverviewTabState extends State<OverviewTab> {
 
   Widget buildStatCards() {
     if (investorData == null) return Container();
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
       children: [
-        Expanded(
+        SizedBox(
+          width: MediaQuery.of(context).size.width < 500 ? double.infinity : 220,
           child: StatCard(
             title: 'Total Contributions',
             value: '\$${investorData!['total_contributions'] ?? '0'}',
@@ -128,8 +130,8 @@ class _OverviewTabState extends State<OverviewTab> {
             color: Colors.green,
           ),
         ),
-        const SizedBox(width: 8),
-        Expanded(
+        SizedBox(
+          width: MediaQuery.of(context).size.width < 500 ? double.infinity : 220,
           child: StatCard(
             title: 'Percentage Share',
             value: '${investorData!['percentage_share'] ?? '0'}%',
@@ -137,8 +139,8 @@ class _OverviewTabState extends State<OverviewTab> {
             color: Colors.blue,
           ),
         ),
-        const SizedBox(width: 8),
-        Expanded(
+        SizedBox(
+          width: MediaQuery.of(context).size.width < 500 ? double.infinity : 220,
           child: StatCard(
             title: 'Transactions',
             value:
