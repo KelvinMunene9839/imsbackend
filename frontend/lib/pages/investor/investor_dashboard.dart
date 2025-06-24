@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'overview_tab.dart';
+import 'contributions_tab.dart';
+import 'interest_tab.dart';
+import 'rankings_tab.dart';
 
 class InvestorDashboard extends StatefulWidget {
   const InvestorDashboard({super.key});
