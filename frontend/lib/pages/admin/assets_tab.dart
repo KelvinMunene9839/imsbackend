@@ -66,7 +66,7 @@ class _AssetsTabState extends State<AssetsTab> {
         'value': value,
       }),
     );
-    if (response.statusCode == 201) {
+    if (response.statusCode == 201 || response.statusCode == 200) {
       setState(() {
         showForm = false;
       });

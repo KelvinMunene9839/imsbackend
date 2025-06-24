@@ -182,6 +182,7 @@ class _ReportsTabState extends State<ReportsTab> {
                         );
                       },
                     ),
+                    SizedBox(height: 16)
             ],
           );
   }

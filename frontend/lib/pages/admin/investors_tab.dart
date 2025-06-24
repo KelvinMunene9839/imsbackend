@@ -49,44 +49,85 @@ class _InvestorsTabState extends State<InvestorsTab> {
     }
   }
 
-  Future<void> addInvestor() async {
-    final name = nameController.text.trim();
-    final email = emailController.text.trim();
-    final password = passwordController.text.trim();
-    if (name.isEmpty || email.isEmpty || password.isEmpty) {
-      setState(() {
-        errorMsg = 'All fields are required.';
-      });
-      return;
-    }
-    setState(() {
-      errorMsg = null;
-    });
-    final response = await apiClient.post('/api/admin/investor', {
-      'name': name,
-      'email': email,
-      'password': password,
-    });
-    if (response.statusCode == 201) {
-      setState(() {
-        showForm = false;
-      });
-      nameController.clear();
-      emailController.clear();
-      passwordController.clear();
-      fetchInvestors();
-    } else {
-      String backendMessage = 'Failed to add investor.';
-      try {
-        final responseBody = jsonDecode(response.body);
-        if (responseBody['message'] != null) {
-          backendMessage = responseBody['message'];
-        }
-      } catch (_) {}
-      setState(() {
-        errorMsg = backendMessage;
-      });
-    }
+  void _showAddInvestorDialog() {
+    nameController.clear();
+    emailController.clear();
+    passwordController.clear();
+    errorMsg = null;
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add Investor'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(labelText: 'Name'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: emailController,
+              decoration: const InputDecoration(labelText: 'Email'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: passwordController,
+              decoration: const InputDecoration(labelText: 'Password'),
+              obscureText: true,
+            ),
+            if (errorMsg != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: Text(
+                  errorMsg!,
+                  style: const TextStyle(color: Colors.red),
+                ),
+              ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final name = nameController.text.trim();
+              final email = emailController.text.trim();
+              final password = passwordController.text.trim();
+              if (name.isEmpty || email.isEmpty || password.isEmpty) {
+                setState(() {
+                  errorMsg = 'All fields are required.';
+                });
+                return;
+              }
+              final response = await apiClient.post('/api/admin/investor', {
+                'name': name,
+                'email': email,
+                'password': password,
+              });
+              if (response.statusCode == 201) {
+                Navigator.pop(context);
+                fetchInvestors();
+              } else {
+                String backendMessage = 'Failed to add investor.';
+                try {
+                  final responseBody = jsonDecode(response.body);
+                  if (responseBody['message'] != null) {
+                    backendMessage = responseBody['message'];
+                  }
+                } catch (_) {}
+                setState(() {
+                  errorMsg = backendMessage;
+                });
+              }
+            },
+            child: const Text('Add Investor'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> editInvestor(Map<String, dynamic> investor) async {
@@ -94,7 +135,6 @@ class _InvestorsTabState extends State<InvestorsTab> {
     emailController.text = investor['email'] ?? '';
     passwordController.clear();
     setState(() {
-      showForm = true;
       errorMsg = null;
     });
     // Wait for user to submit the form, then update
@@ -211,58 +251,6 @@ class _InvestorsTabState extends State<InvestorsTab> {
         : ListView(
             padding: const EdgeInsets.all(16.0),
             children: [
-              if (showForm)
-                Card(
-                  elevation: 4,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(20.0),
-                    child: Column(
-                      children: [
-                        TextField(
-                          controller: nameController,
-                          decoration: const InputDecoration(labelText: 'Name'),
-                        ),
-                        const SizedBox(height: 12),
-                        TextField(
-                          controller: emailController,
-                          decoration: const InputDecoration(labelText: 'Email'),
-                        ),
-                        const SizedBox(height: 12),
-                        TextField(
-                          controller: passwordController,
-                          decoration: const InputDecoration(
-                            labelText: 'Password',
-                          ),
-                          obscureText: true,
-                        ),
-                        if (errorMsg != null)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 8.0),
-                            child: Text(
-                              errorMsg!,
-                              style: const TextStyle(color: Colors.red),
-                            ),
-                          ),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            TextButton(
-                              onPressed: () => setState(() => showForm = false),
-                              child: const Text('Cancel'),
-                            ),
-                            ElevatedButton(
-                              onPressed: addInvestor,
-                              child: const Text('Add Investor'),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
@@ -274,7 +262,7 @@ class _InvestorsTabState extends State<InvestorsTab> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    onPressed: () => setState(() => showForm = true),
+                    onPressed: _showAddInvestorDialog,
                     child: const Text('Add Investor'),
                   ),
                 ],
@@ -345,7 +333,7 @@ class _InvestorsTabState extends State<InvestorsTab> {
                         IconButton(
                           icon: const Icon(
                             Icons.visibility,
-                            color: const Color(0xFF18332B),
+                            color: Color(0xFF18332B),
                           ),
                           tooltip: 'View',
                           onPressed: () {
@@ -367,7 +355,10 @@ class _InvestorsTabState extends State<InvestorsTab> {
                           },
                         ),
                         IconButton(
-                          icon: const Icon(Icons.edit, color:const Color(0xFF18332B)),
+                          icon: const Icon(
+                            Icons.edit,
+                            color: Color(0xFF18332B),
+                          ),
                           tooltip: 'Edit',
                           onPressed: () => editInvestor(investor),
                         ),
