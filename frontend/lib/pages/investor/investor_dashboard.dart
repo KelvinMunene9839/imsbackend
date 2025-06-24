@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../api_client.dart';
-import '../../config.dart';
-import 'contributions_tab.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import 'overview_tab.dart';
+import 'contributions_tab.dart';
 import 'interest_tab.dart';
 import 'rankings_tab.dart';
 
