@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:frontend/config.dart';
 
 class InvestorDashboard extends StatefulWidget {
   const InvestorDashboard({super.key});
@@ -11,58 +10,63 @@ class InvestorDashboard extends StatefulWidget {
 }
 
 class _InvestorDashboardState extends State<InvestorDashboard> {
-  Map<String, dynamic>? investorData;
-  bool isLoading = true;
-  final TextEditingController amountController = TextEditingController();
-  String? txError;
-  bool txLoading = false;
-
-  @override
-  void initState() {
-    super.initState();
-    fetchDashboard();
-  }
-
-  Future<void> fetchDashboard() async {
-    setState(() {
-      isLoading = true;
-    });
-    final response = await http.get(
-      Uri.parse('$backendBaseUrl/api/investor/me?id=1'),
-    );
-    if (response.statusCode == 200) {
-      setState(() {
-        investorData = jsonDecode(response.body);
-        isLoading = false;
-      });
-    } else {
-      setState(() {
-        isLoading = false;
-      });
-    }
-  }
+  int _selectedIndex = 0;
+  final List<String> _tabs = [
+    'Overview',
+    'Contributions',
+    'Interest',
+    'Rankings',
+  ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Investor Dashboard')),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Investor Dashboard',
-                    style: Theme.of(context).textTheme.headlineSmall,
-                  ),
-                  const SizedBox(height: 16),
-                  Text('Welcome - Ently'),
-                  // ...rest of the dashboard...
-                ],
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      appBar: AppBar(
+        title: const Text('Investor Dashboard'),
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () => Scaffold.of(context).openDrawer(),
+          ),
+        ),
+      ),
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            const DrawerHeader(
+              decoration: BoxDecoration(color: Color(0xFF18332B)),
+              child: Text(
+                'Menu',
+                style: TextStyle(color: Colors.white, fontSize: 24),
               ),
             ),
+            ..._tabs.asMap().entries.map(
+              (entry) => ListTile(
+                title: Text(entry.value),
+                selected: _selectedIndex == entry.key,
+                onTap: () {
+                  setState(() => _selectedIndex = entry.key);
+                  Navigator.pop(context);
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: IndexedStack(
+          index: _selectedIndex,
+          children: const [
+            OverviewTab(),
+            ContributionsTab(),
+            InterestTab(),
+            RankingsTab(),
+          ],
+        ),
+      ),
     );
   }
 }
