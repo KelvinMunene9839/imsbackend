@@ -67,23 +67,30 @@ class AdminWelcomePage extends StatelessWidget {
           ),
           const SizedBox(height: 32),
           Row(
+            mainAxisAlignment: MainAxisAlignment.start,
             children: [
-              ElevatedButton.icon(
-                icon: const Icon(Icons.add),
-                label: const Text('Add Asset'),
-                onPressed: () {}, // TODO: Implement
+              Expanded(
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add Asset'),
+                  onPressed: () {}, // TODO: Implement
+                ),
               ),
               const SizedBox(width: 16),
-              ElevatedButton.icon(
-                icon: const Icon(Icons.person_add),
-                label: const Text('Add Investor'),
-                onPressed: () {}, // TODO: Implement
+              Expanded(
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.person_add),
+                  label: const Text('Add Investor'),
+                  onPressed: () {}, // TODO: Implement
+                ),
               ),
               const SizedBox(width: 16),
-              OutlinedButton.icon(
-                icon: const Icon(Icons.insert_chart),
-                label: const Text('View Reports'),
-                onPressed: () {}, // TODO: Implement
+              Expanded(
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.insert_chart),
+                  label: const Text('View Reports'),
+                  onPressed: () {}, // TODO: Implement
+                ),
               ),
             ],
           ),
