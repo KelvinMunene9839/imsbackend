@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'pages/login_screen.dart';
 import 'pages/investor/investor_dashboard.dart';
-import 'pages/admin_login_screen.dart';
+import 'pages/admin_login_screen.dart'; // Ensure this file exists and contains the AdminLoginScreen class
 import 'pages/admin_dashboard.dart';
-import 'pages/AdminRegister.dart';
 
 void main() {
   runApp(const IMSApp());
@@ -29,7 +28,7 @@ class IMSApp extends StatelessWidget {
           '/admin': (context) {
             return const AdminDashboard();
           },
-          '/admin-register': (context) => const AdminRegisterScreen(),
+          // '/admin-register': (context) => const AdminRegisterScreen(),
       },
     );
   }

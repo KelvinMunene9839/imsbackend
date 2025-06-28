@@ -45,7 +45,9 @@ router.get('/report/assets', async (req, res) => {
       const [owners] = await pool.query('SELECT ao.investor_id, i.name, ao.percentage FROM asset_ownership ao JOIN investors i ON ao.investor_id = i.id WHERE ao.asset_id = ?', [asset.id]);
       asset.ownerships = owners;
     }
-    res.json(assets);
+    // Fix: Ensure proper JSON formatting by serializing assets explicitly
+    res.setHeader('Content-Type', 'application/json');
+    res.send(JSON.stringify(assets));
   } catch (err) {
     res.status(500).json({ message: 'Server error.' });
   }

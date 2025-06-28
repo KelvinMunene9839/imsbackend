@@ -55,7 +55,13 @@ class _ContributionsTabState extends State<ContributionsTab> {
         final data = Map<String, dynamic>.from(jsonDecode(res.body));
         setState(() {
           _contributions = List<Map<String, dynamic>>.from(
-            data['transactions'] ?? [],
+            (data['transactions'] ?? []).map((transaction) {
+              final Map<String, dynamic> t = Map<String, dynamic>.from(transaction);
+              if (t['amount'] is String) {
+                t['amount'] = double.tryParse(t['amount']) ?? 0.0;
+              }
+              return t;
+            }).toList(),
           );
           _loading = false;
         });

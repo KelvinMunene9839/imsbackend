@@ -70,8 +70,15 @@ class _ReportsTabState extends State<ReportsTab> {
           final month = row['month'].toString().padLeft(2, '0');
           final year = row['year'].toString();
           final key = '$year-$month';
-          monthTotals[key] =
-              (monthTotals[key] ?? 0) + (row['total'] as num).toDouble();
+          double totalValue;
+          if (row['total'] is String) {
+            totalValue = double.tryParse(row['total']) ?? 0.0;
+          } else if (row['total'] is num) {
+            totalValue = (row['total'] as num).toDouble();
+          } else {
+            totalValue = 0.0;
+          }
+          monthTotals[key] = (monthTotals[key] ?? 0) + totalValue;
         }
         final sortedKeys = monthTotals.keys.toList()..sort();
         setState(() {
@@ -100,90 +107,58 @@ class _ReportsTabState extends State<ReportsTab> {
   Widget build(BuildContext context) {
     return isLoading
         ? const Center(child: CircularProgressIndicator())
-        : Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Text(
-                  'Reports',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF18332B),
+        : SingleChildScrollView(
+            padding: const EdgeInsets.all(8.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.all(8.0),
+                  child: Text(
+                    'Reports',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF18332B),
+                    ),
                   ),
                 ),
-              ),
-              Row(
-                children: [
-                  StatCard(
-                    title: 'Total Reports',
-                    value: reports.length.toString(),
-                    icon: Icons.insert_chart,
-                    color: const Color(0xFF18332B),
-                  ),
-                  const SizedBox(width: 16),
-                  StatCard(
-                    title: 'Monthly Trends',
-                    value: monthlyContributions.isNotEmpty
-                        ? monthlyContributions.last['total'].toString()
-                        : '-',
-                    icon: Icons.trending_up,
-                    color: Colors.green,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'Contribution Trends',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-              ),
-              isLoadingChart
-                  ? const Center(child: CircularProgressIndicator())
-                  : Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: ContributionTrendsChart(
-                        data: monthlyContributions,
+                Row(
+                  children: [
+                    StatCard(
+                      title: 'Total Reports',
+                      value: reports.length.toString(),
+                      icon: Icons.insert_chart,
+                      color: const Color(0xFF18332B),
+                    ),
+                    const SizedBox(width: 16),
+                    StatCard(
+                      title: 'Monthly Trends',
+                      value: monthlyContributions.isNotEmpty
+                          ? monthlyContributions.last['total'].toString()
+                          : '-',
+                      icon: Icons.trending_up,
+                      color: Colors.green,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  'Contribution Trends',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                ),
+                isLoadingChart
+                    ? const Center(child: CircularProgressIndicator())
+                    : Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: ContributionTrendsChart(
+                          data: monthlyContributions,
+                        ),
                       ),
-                    ),
-              const Divider(),
-              const Text(
-                'Asset Ownership Breakdown',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-              ),
-              isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : ListView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: reports.length,
-                      itemBuilder: (context, idx) {
-                        final asset = reports[idx];
-                        return Card(
-                          margin: const EdgeInsets.all(8),
-                          child: ListTile(
-                            title: Text('Asset: ${asset['name']}'),
-                            subtitle: Text('Value: ${asset['value']}'),
-                            isThreeLine: true,
-                            trailing: Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                const Text('Ownership:'),
-                                ...((asset['ownerships'] as List)
-                                    .map(
-                                      (o) => Text(
-                                        '${o['name']}: ${o['percentage']}%',
-                                      ),
-                                    )
-                                    .toList()),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                    SizedBox(height: 16)
-            ],
+                const Divider(),
+                // Removed Asset Ownership Breakdown section to move to separate tab
+              ],
+            ),
           );
   }
 }
