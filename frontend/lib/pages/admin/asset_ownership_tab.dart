@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -56,82 +57,83 @@ class _AssetOwnershipTabState extends State<AssetOwnershipTab> {
       return const Center(child: CircularProgressIndicator());
     }
     if (error != null) {
-      return Center(child: Text(error!));
+      return Center(child: Text(error!, style: const TextStyle(color: Colors.red)));
     }
     if (assets.isEmpty) {
       return const Center(child: Text('No asset ownership data available.'));
     }
-    return ListView.builder(
-      shrinkWrap: true,
-      physics: const AlwaysScrollableScrollPhysics(),
-      itemCount: assets.length,
-      itemBuilder: (context, idx) {
-        final asset = assets[idx];
-        final ownerships = (asset['ownerships'] as List?) ?? [];
-        return Card(
-          margin: const EdgeInsets.all(8),
-          child: ExpansionTile(
-            title: Text('Asset: ${asset['name'] ?? '-'}'),
-            subtitle: Text('Value: ₦${asset['value'] ?? '-'}'),
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16.0,
-                  vertical: 8.0,
-                ),
-                child: ownerships.isEmpty
-                    ? const Text('No ownership data for this asset.')
-                    : Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Ownership Breakdown:',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 8),
-                          ...ownerships.map((o) {
-                            final name = o['name'] ?? '-';
-                            final percentage = o['percentage'] ?? 0;
-                            final amount = o['amount'];
-                            return ListTile(
-                              leading: CircleAvatar(
+
+    return RefreshIndicator(
+      onRefresh: fetchAssets,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(12),
+        itemCount: assets.length,
+        itemBuilder: (context, idx) {
+          final asset = assets[idx];
+          final ownerships = asset['ownerships'] as List<dynamic>? ?? [];
+          return Card(
+            margin: const EdgeInsets.symmetric(vertical: 8),
+            elevation: 3,
+            child: ExpansionTile(
+              title: Text(
+                asset['name'] ?? 'Unnamed Asset',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+              subtitle: Text('Value: ₦${asset['value'] ?? 'N/A'}'),
+              children: [
+                if (ownerships.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.all(12.0),
+                    child: Text('No ownership data for this asset.'),
+                  )
+                else
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Column(
+                      children: ownerships.map((o) {
+                        final percentRaw = o['percentage'] ?? 0;
+                        final percent = (percentRaw is String) ? double.tryParse(percentRaw) ?? 0.0 : (percentRaw as num).toDouble();
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8.0),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                flex: 2,
                                 child: Text(
-                                  name.isNotEmpty ? name[0].toUpperCase() : '?',
+                                  o['name'] ?? 'Unknown',
+                                  style: const TextStyle(fontSize: 16),
                                 ),
                               ),
-                              title: Text(name),
-                              subtitle: amount != null
-                                  ? Text('₦$amount')
-                                  : null,
-                              trailing: SizedBox(
-                                width: 120,
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.end,
+                              Expanded(
+                                flex: 3,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text('${percentage.toStringAsFixed(2)}%'),
-                                    const SizedBox(width: 4),
-                                    Expanded(
-                                      child: LinearProgressIndicator(
-                                        value: (percentage is num)
-                                            ? (percentage / 100).clamp(0.0, 1.0)
-                                            : 0.0,
-                                        minHeight: 6,
-                                        backgroundColor: Colors.grey[200],
-                                        color: Colors.green,
-                                      ),
+                                    LinearProgressIndicator(
+                                      value: percent / 100,
+                                      minHeight: 8,
+                                      backgroundColor: Colors.grey[200],
+                                      color: Theme.of(context).primaryColor,
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '${percent.toStringAsFixed(2)}%  (₦${o['amount'] ?? 'N/A'})',
+                                      style: const TextStyle(fontSize: 13, color: Colors.black54),
                                     ),
                                   ],
                                 ),
                               ),
-                            );
-                          }).toList(),
-                        ],
-                      ),
-              ),
-            ],
-          ),
-        );
-      },
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 }
