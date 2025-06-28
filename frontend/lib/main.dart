@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'pages/login_screen.dart';
+import 'pages/investor/login_screen.dart';
 import 'pages/investor/investor_dashboard.dart';
-import 'pages/admin_login_screen.dart'; // Ensure this file exists and contains the AdminLoginScreen class
-import 'pages/admin_dashboard.dart';
+import 'pages/admin/admin_login_screen.dart'; // Ensure this file exists and contains the AdminLoginScreen class
+import 'pages/admin/admin_dashboard.dart';
 
 void main() {
   runApp(const IMSApp());
