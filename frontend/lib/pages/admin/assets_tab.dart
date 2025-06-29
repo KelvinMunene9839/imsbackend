@@ -4,7 +4,6 @@ import 'dart:convert';
 import 'package:frontend/config.dart';
 import '../../widgets/stat_card.dart';
 
-
 class AssetsTab extends StatefulWidget {
   const AssetsTab({super.key});
 
@@ -61,10 +60,7 @@ class _AssetsTabState extends State<AssetsTab> {
     final response = await http.post(
       Uri.parse('$backendBaseUrl/api/admin/asset'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'name': name,
-        'value': value,
-      }),
+      body: jsonEncode({'name': name, 'value': value}),
     );
     if (response.statusCode == 201 || response.statusCode == 200) {
       setState(() {

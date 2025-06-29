@@ -4,12 +4,14 @@ class ProfileCard extends StatelessWidget {
   final String name;
   final String amount;
   final VoidCallback? onViewProfile;
+  final String? imageUrl;
 
   const ProfileCard({
     super.key,
     required this.name,
     required this.amount,
     this.onViewProfile,
+    this.imageUrl,
   });
 
   @override
@@ -21,9 +23,47 @@ class ProfileCard extends StatelessWidget {
         padding: const EdgeInsets.all(20.0),
         child: Row(
           children: [
-            CircleAvatar(
-              backgroundColor: Colors.white,
-              child: Icon(Icons.person, color: Color(0xFF18332B)),
+            GestureDetector(
+              onTap: onViewProfile,
+              child: Stack(
+                alignment: Alignment.bottomRight,
+                children: [
+                  CircleAvatar(
+                    radius: 32,
+                    backgroundColor: Colors.white,
+                    backgroundImage: imageUrl != null && imageUrl!.isNotEmpty
+                        ? NetworkImage(imageUrl!)
+                        : null,
+                    child: (imageUrl == null || imageUrl!.isEmpty)
+                        ? Icon(Icons.person, color: Color(0xFF18332B), size: 32)
+                        : null,
+                  ),
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 2,
+                          ),
+                        ],
+                      ),
+                      child: const Padding(
+                        padding: EdgeInsets.all(2.0),
+                        child: Icon(
+                          Icons.edit,
+                          size: 16,
+                          color: Color(0xFF18332B),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(width: 16),
             Expanded(

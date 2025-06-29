@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 import '../../api_client.dart';
 import '../../config.dart';
 import '../../widgets/ims_card.dart';
@@ -24,6 +27,8 @@ class _OverviewTabState extends State<OverviewTab> {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   String? error;
+  File? _profileImage;
+  String? _profileImageUrl;
 
   @override
   void initState() {
@@ -57,6 +62,14 @@ class _OverviewTabState extends State<OverviewTab> {
           investorData = data;
           nameController.text = data['name'] ?? '';
           emailController.text = data['email'] ?? '';
+          // Set profile image URL if available
+          _profileImageUrl =
+              data['image'] != null && data['image'].toString().isNotEmpty
+              ? (data['image'].toString().startsWith('http')
+                    ? data['image']
+                    : '$backendBaseUrl/${data['image']}')
+              : null;
+          _profileImage = null; // Reset local image after fetch
           isLoading = false;
         });
       } else {
@@ -114,6 +127,152 @@ class _OverviewTabState extends State<OverviewTab> {
     }
   }
 
+  Future<void> _pickProfileImage(StateSetter setModalState) async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery);
+    if (picked != null) {
+      setModalState(() {
+        _profileImage = File(picked.path);
+      });
+    }
+  }
+
+  void _showProfileDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => AlertDialog(
+          title: const Text('Edit Profile'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              GestureDetector(
+                onTap: () => _pickProfileImage(setModalState),
+                child: Stack(
+                  alignment: Alignment.bottomRight,
+                  children: [
+                    CircleAvatar(
+                      radius: 40,
+                      backgroundImage: _profileImage != null
+                          ? FileImage(_profileImage!)
+                          : (_profileImageUrl != null
+                                ? NetworkImage(_profileImageUrl!)
+                                      as ImageProvider
+                                : null),
+                      child: _profileImage == null && _profileImageUrl == null
+                          ? const Icon(Icons.person, size: 40)
+                          : null,
+                    ),
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: CircleAvatar(
+                        radius: 14,
+                        backgroundColor: Colors.white,
+                        child: Icon(Icons.edit, size: 16, color: Colors.black),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(labelText: 'Name'),
+              ),
+              TextField(
+                controller: emailController,
+                decoration: const InputDecoration(labelText: 'Email'),
+              ),
+              if (error != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8.0),
+                  child: Text(
+                    error!,
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                await saveProfileWithImage(setModalState);
+                if (error == null) Navigator.pop(context);
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> saveProfileWithImage(StateSetter setModalState) async {
+    setModalState(() {
+      isLoading = true;
+      error = null;
+    });
+    try {
+      final investorId = await getInvestorId();
+      if (investorId == null) {
+        setModalState(() {
+          error = 'No investor ID found. Please log in again.';
+          isLoading = false;
+        });
+        return;
+      }
+      var request = http.MultipartRequest(
+        'PATCH',
+        Uri.parse('$backendBaseUrl/api/investor/me?id=$investorId'),
+      );
+      request.fields['name'] = nameController.text;
+      request.fields['email'] = emailController.text;
+      if (_profileImage != null) {
+        request.files.add(
+          await http.MultipartFile.fromPath('image', _profileImage!.path),
+        );
+      }
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      if (response.statusCode == 200) {
+        setModalState(() {
+          isEditing = false;
+          error = null;
+        });
+        await fetchInvestor();
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Profile updated.')));
+        }
+      } else {
+        String backendError = 'Failed to update profile.';
+        try {
+          final resp = jsonDecode(response.body);
+          if (resp is Map && resp['error'] != null) {
+            backendError = resp['error'].toString();
+          }
+        } catch (_) {}
+        setModalState(() {
+          error = backendError;
+        });
+      }
+    } catch (e) {
+      setModalState(() {
+        error = 'Error: $e';
+      });
+    } finally {
+      setModalState(() {
+        isLoading = false;
+      });
+    }
+  }
+
   Widget buildStatCards() {
     if (investorData == null) return Container();
     return Wrap(
@@ -121,7 +280,9 @@ class _OverviewTabState extends State<OverviewTab> {
       runSpacing: 12,
       children: [
         SizedBox(
-          width: MediaQuery.of(context).size.width < 500 ? double.infinity : 220,
+          width: MediaQuery.of(context).size.width < 500
+              ? double.infinity
+              : 220,
           child: StatCard(
             title: 'Total Contributions',
             value: '\$${investorData!['total_contributions'] ?? '0'}',
@@ -130,7 +291,9 @@ class _OverviewTabState extends State<OverviewTab> {
           ),
         ),
         SizedBox(
-          width: MediaQuery.of(context).size.width < 500 ? double.infinity : 220,
+          width: MediaQuery.of(context).size.width < 500
+              ? double.infinity
+              : 220,
           child: StatCard(
             title: 'Percentage Share',
             value: '${investorData!['percentage_share'] ?? '0'}%',
@@ -139,7 +302,9 @@ class _OverviewTabState extends State<OverviewTab> {
           ),
         ),
         SizedBox(
-          width: MediaQuery.of(context).size.width < 500 ? double.infinity : 220,
+          width: MediaQuery.of(context).size.width < 500
+              ? double.infinity
+              : 220,
           child: StatCard(
             title: 'Transactions',
             value:
@@ -204,38 +369,10 @@ class _OverviewTabState extends State<OverviewTab> {
           ProfileCard(
             name: investorData?['name'] ?? '',
             amount: investorData?['status'] ?? 'Unknown',
-            onViewProfile: () => setState(() => isEditing = true),
+            onViewProfile: _showProfileDialog,
+            imageUrl: _profileImageUrl,
           ),
           const SizedBox(height: 16),
-          if (isEditing)
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                TextField(
-                  controller: nameController,
-                  decoration: const InputDecoration(labelText: 'Name'),
-                ),
-                TextField(
-                  controller: emailController,
-                  decoration: const InputDecoration(labelText: 'Email'),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    ElevatedButton(
-                      onPressed: saveProfile,
-                      child: const Text('Save'),
-                    ),
-                    const SizedBox(width: 8),
-                    TextButton(
-                      onPressed: () => setState(() => isEditing = false),
-                      child: const Text('Cancel'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-              ],
-            ),
           buildStatCards(),
           const SizedBox(height: 16),
           ImsCard(child: buildRecentTransactions()),
