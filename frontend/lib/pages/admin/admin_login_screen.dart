@@ -23,22 +23,29 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
       isLoading = true;
       error = null;
     });
-    final response = await http.post(
-      Uri.parse('$backendBaseUrl/api/auth/admin/login'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'email': emailController.text,
-        'password': passwordController.text,
-      }),
-    );
-    setState(() {
-      isLoading = false;
-    });
-    if (response.statusCode == 200) {
-      Navigator.pushReplacementNamed(context, '/admin');
-    } else {
+    try {
+      final response = await http.post(
+        Uri.parse('$backendBaseUrl/api/auth/admin/login'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email': emailController.text,
+          'password': passwordController.text,
+        }),
+      );
       setState(() {
-        error = 'Login failed. check for email and password.';
+        isLoading = false;
+      });
+      if (response.statusCode == 200) {
+        Navigator.pushReplacementNamed(context, '/admin');
+      } else {
+        setState(() {
+          error = 'Login failed. Check your email and password.';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        isLoading = false;
+        error = 'Network error: Unable to reach the server. Please check your connection and try again.';
       });
     }
   }

@@ -176,7 +176,7 @@ class _OverviewTabState extends State<OverviewTab> {
             subtitle: Text(date),
             trailing: Text(status),
           );
-        }).toList(),
+        }),
         TextButton(
           onPressed: () {
             // Navigate to Contributions tab or page
@@ -196,51 +196,61 @@ class _OverviewTabState extends State<OverviewTab> {
     if (error != null) {
       return Center(child: Text(error!));
     }
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ProfileCard(
-            name: investorData?['name'] ?? '',
-            amount: investorData?['status'] ?? 'Unknown',
-            onViewProfile: () => setState(() => isEditing = true),
-          ),
-          const SizedBox(height: 16),
-          if (isEditing)
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                TextField(
-                  controller: nameController,
-                  decoration: const InputDecoration(labelText: 'Name'),
-                ),
-                TextField(
-                  controller: emailController,
-                  decoration: const InputDecoration(labelText: 'Email'),
-                ),
-                const SizedBox(height: 8),
-                Row(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        double paddingValue = 16.0;
+        if (constraints.maxWidth < 400) {
+          paddingValue = 8.0;
+        } else if (constraints.maxWidth < 600) {
+          paddingValue = 12.0;
+        }
+        return SingleChildScrollView(
+          padding: EdgeInsets.all(paddingValue),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ProfileCard(
+                name: investorData?['name'] ?? '',
+                amount: investorData?['status'] ?? 'Unknown',
+                onViewProfile: () => setState(() => isEditing = true),
+              ),
+              SizedBox(height: paddingValue),
+              if (isEditing)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    ElevatedButton(
-                      onPressed: saveProfile,
-                      child: const Text('Save'),
+                    TextField(
+                      controller: nameController,
+                      decoration: const InputDecoration(labelText: 'Name'),
                     ),
-                    const SizedBox(width: 8),
-                    TextButton(
-                      onPressed: () => setState(() => isEditing = false),
-                      child: const Text('Cancel'),
+                    TextField(
+                      controller: emailController,
+                      decoration: const InputDecoration(labelText: 'Email'),
                     ),
+                    SizedBox(height: paddingValue / 2),
+                    Row(
+                      children: [
+                        ElevatedButton(
+                          onPressed: saveProfile,
+                          child: const Text('Save'),
+                        ),
+                        SizedBox(width: paddingValue / 2),
+                        TextButton(
+                          onPressed: () => setState(() => isEditing = false),
+                          child: const Text('Cancel'),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: paddingValue),
                   ],
                 ),
-                const SizedBox(height: 16),
-              ],
-            ),
-          buildStatCards(),
-          const SizedBox(height: 16),
-          ImsCard(child: buildRecentTransactions()),
-        ],
-      ),
+              buildStatCards(),
+              SizedBox(height: paddingValue),
+              ImsCard(child: buildRecentTransactions()),
+            ],
+          ),
+        );
+      },
     );
   }
 }

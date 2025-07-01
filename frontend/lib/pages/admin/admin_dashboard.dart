@@ -37,6 +37,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
   double totalContributions = 0.0;
   int pendingApprovals = 0;
   List<dynamic> assetOwnerships = [];
+  double totalAssetValue = 0.0;
 
   @override
   void initState() {
@@ -57,6 +58,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
       );
       final pendingResponse = await http.get(
         Uri.parse('$backendBaseUrl/api/admin/pending-approvals'),
+      );
+      final totalAssetValueResponse = await http.get(
+        Uri.parse('$backendBaseUrl/api/admin/total-asset-value'),
       );
 
       if (assetsResponse.statusCode == 200) {
@@ -93,6 +97,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
           pendingApprovals = (pendingData as List).length;
         });
       }
+
+      if (totalAssetValueResponse.statusCode == 200) {
+        final data = jsonDecode(totalAssetValueResponse.body);
+        setState(() {
+          totalAssetValue = (data['total'] is num)
+              ? data['total'].toDouble()
+              : double.tryParse(data['total'].toString()) ?? 0.0;
+        });
+      }
     } catch (e) {
       print('Error fetching dashboard data: $e');
     }
@@ -100,6 +113,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   void _onTabChanged(int index) async {
     setState(() => _selectedIndex = index);
+    // If Welcome tab is selected, refresh all dashboard data
+    if (_tabs[index] == 'Welcome') {
+      await _fetchDashboardData();
+    }
     // If Asset Ownership tab is selected, refresh asset ownerships
     if (_tabs[index] == 'Asset Ownership') {
       try {
@@ -164,6 +181,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
               totalInvestors: totalInvestors,
               totalContributions: totalContributions,
               pendingApprovals: pendingApprovals,
+              totalAssetValue: totalAssetValue,
             ),
             PendingTransactionsTab(),
             AssetsTab(),

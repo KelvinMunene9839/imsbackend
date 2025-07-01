@@ -3,6 +3,7 @@ import 'overview_tab.dart';
 import 'contributions_tab.dart';
 import 'interest_tab.dart';
 import 'rankings_tab.dart';
+import 'asset_ownership_tab.dart';
 
 class InvestorDashboard extends StatefulWidget {
   const InvestorDashboard({super.key});
@@ -18,6 +19,7 @@ class _InvestorDashboardState extends State<InvestorDashboard> {
     'Contributions',
     'Interest',
     'Rankings',
+    'Asset Ownership',
   ];
 
   @override
@@ -57,17 +59,28 @@ class _InvestorDashboardState extends State<InvestorDashboard> {
           ],
         ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: IndexedStack(
-          index: _selectedIndex,
-          children: const [
-            OverviewTab(),
-            ContributionsTab(),
-            InterestTab(),
-            RankingsTab(),
-          ],
-        ),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          double horizontalPadding = 24.0;
+          if (constraints.maxWidth < 400) {
+            horizontalPadding = 12.0;
+          } else if (constraints.maxWidth < 600) {
+            horizontalPadding = 16.0;
+          }
+          return Padding(
+            padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 16.0),
+            child: IndexedStack(
+              index: _selectedIndex,
+              children: const [
+                OverviewTab(),
+                ContributionsTab(),
+                InterestTab(),
+                RankingsTab(),
+                InvestorAssetOwnershipTab(),
+              ],
+            ),
+          );
+        },
       ),
     );
   }

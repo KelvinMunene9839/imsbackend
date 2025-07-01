@@ -6,15 +6,19 @@ class AdminWelcomePage extends StatelessWidget {
   final int totalInvestors;
   final double totalContributions;
   final int pendingApprovals;
+  final double totalAssetValue;
+  final String currencySymbol;
 
   const AdminWelcomePage({
-    Key? key,
+    super.key,
     this.adminName,
     this.totalAssets = 0,
     this.totalInvestors = 0,
     this.totalContributions = 0.0,
     this.pendingApprovals = 0,
-  }) : super(key: key);
+    this.totalAssetValue = 0.0,
+    this.currencySymbol = 'FRw',
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -35,35 +39,118 @@ class AdminWelcomePage extends StatelessWidget {
             style: Theme.of(context).textTheme.bodyLarge,
           ),
           const SizedBox(height: 32),
-          Wrap(
-            spacing: 16,
-            runSpacing: 16,
-            children: [
-              _StatCard(
-                icon: Icons.account_balance,
-                label: 'Total Assets',
-                value: totalAssets.toString(),
-                color: Colors.blue.shade100,
-              ),
-              _StatCard(
-                icon: Icons.people,
-                label: 'Investors',
-                value: totalInvestors.toString(),
-                color: Colors.green.shade100,
-              ),
-              _StatCard(
-                icon: Icons.attach_money,
-                label: 'Contributions',
-                value: '₦${totalContributions.toStringAsFixed(2)}',
-                color: Colors.orange.shade100,
-              ),
-              _StatCard(
-                icon: Icons.pending_actions,
-                label: 'Pending Approvals',
-                value: pendingApprovals.toString(),
-                color: Colors.red.shade100,
-              ),
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              int crossAxisCount = 2;
+              double width = constraints.maxWidth;
+              if (width > 800) {
+                crossAxisCount = 4;
+              } else if (width > 600) {
+                crossAxisCount = 3;
+              }
+              return GridView.count(
+                crossAxisCount: crossAxisCount,
+                crossAxisSpacing: 16,
+                mainAxisSpacing: 16,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                childAspectRatio: 170 / 150,
+                children: [
+                  _StatCard(
+                    icon: Icons.account_balance,
+                    label: 'Total Assets',
+                    valueWidget: Text(
+                      totalAssets.toString(),
+                      style: Theme.of(context)
+                          .textTheme
+                          .headlineSmall
+                          ?.copyWith(fontWeight: FontWeight.bold),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    color: Colors.blue.shade100,
+                  ),
+                  _StatCard(
+                    icon: null,
+                    label: 'Total Asset Value',
+                    valueWidget: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          currencySymbol,
+                          style: Theme.of(context).textTheme.bodyMedium,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          totalAssetValue.toStringAsFixed(2),
+                          style: Theme.of(context)
+                              .textTheme
+                              .headlineSmall
+                              ?.copyWith(fontWeight: FontWeight.bold),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                    color: Colors.purple.shade100,
+                  ),
+                  _StatCard(
+                    icon: Icons.people,
+                    label: 'Investors',
+                    valueWidget: Text(
+                      totalInvestors.toString(),
+                      style: Theme.of(context)
+                          .textTheme
+                          .headlineSmall
+                          ?.copyWith(fontWeight: FontWeight.bold),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    color: Colors.green.shade100,
+                  ),
+                  _StatCard(
+                    icon: null,
+                    label: 'Contributions',
+                    valueWidget: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          currencySymbol,
+                          style: Theme.of(context).textTheme.bodyMedium,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          totalContributions.toStringAsFixed(2),
+                          style: Theme.of(context)
+                              .textTheme
+                              .headlineSmall
+                              ?.copyWith(fontWeight: FontWeight.bold),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                    color: Colors.orange.shade100,
+                  ),
+                  _StatCard(
+                    icon: Icons.pending_actions,
+                    label: 'Pending Approvals',
+                    valueWidget: Text(
+                      pendingApprovals.toString(),
+                      style: Theme.of(context)
+                          .textTheme
+                          .headlineSmall
+                          ?.copyWith(fontWeight: FontWeight.bold),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    color: Colors.red.shade100,
+                  ),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 32),
           Row(
@@ -114,45 +201,52 @@ class AdminWelcomePage extends StatelessWidget {
 }
 
 class _StatCard extends StatelessWidget {
-  final IconData icon;
+  final IconData? icon;
   final String label;
-  final String value;
+  final Widget valueWidget;
   final Color color;
 
   const _StatCard({
-    required this.icon,
+    this.icon,
     required this.label,
-    required this.value,
+    required this.valueWidget,
     required this.color,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 170,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 2)),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 32, color: Colors.black54),
-          const SizedBox(height: 12),
-          Text(
-            value,
-            style: Theme.of(
-              context,
-            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 4),
-          Text(label, style: Theme.of(context).textTheme.bodyMedium),
-        ],
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 150),
+      child: Container(
+        width: 170,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 2)),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.max,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 32, color: Colors.black54),
+              const SizedBox(height: 12),
+            ],
+            Expanded(
+              child: SingleChildScrollView(
+                child: valueWidget,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(label,
+                style: Theme.of(context).textTheme.bodyMedium,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis),
+          ],
+        ),
       ),
     );
   }

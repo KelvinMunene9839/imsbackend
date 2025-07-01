@@ -10,6 +10,15 @@ class ImsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    double screenWidth = MediaQuery.of(context).size.width;
+    double paddingValue = 20.0;
+
+    if (screenWidth < 400) {
+      paddingValue = 12.0;
+    } else if (screenWidth < 600) {
+      paddingValue = 16.0;
+    }
+
     return GestureDetector(
       onTap: onTap,
       child: Card(
@@ -17,7 +26,7 @@ class ImsCard extends StatelessWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         elevation: 2,
         child: Padding(
-          padding: padding ?? const EdgeInsets.all(20.0),
+          padding: padding ?? EdgeInsets.all(paddingValue),
           child: child,
         ),
       ),
