@@ -5,31 +5,41 @@ const router = express.Router();
 
 // Add a new asset with dynamic ownership based on investor shares
 router.post('/asset', async (req, res) => {
-  console.log('POST /asset req.body:', req.body);
-  if (!req.body || typeof req.body !== 'object') {
-    return res.status(400).json({ message: 'Missing or invalid JSON body.' });
-  }
-  const { name, value } = req.body || {};
-  if (!name || !value) {
+  const { name, value, contributions } = req.body;
+  if (!name || !value || !Array.isArray(contributions) || contributions.length === 0) {
     return res.status(400).json({ message: 'Missing required fields.' });
   }
+
+  // Calculate total contribution
+  const total = contributions.reduce((sum, c) => sum + Number(c.amount), 0);
+  if (total <= 0) {
+    return res.status(400).json({ message: 'Total contribution must be greater than zero.' });
+  }
+
   try {
+    // Start transaction
+    await pool.query('START TRANSACTION');
+
     // Insert the asset
     const [result] = await pool.query('INSERT INTO assets (name, value) VALUES (?, ?)', [name, value]);
     const assetId = result.insertId;
-    // Fetch all investors and their shares
-    const [investors] = await pool.query('SELECT id, shares FROM investors');
-    const totalShares = investors.reduce((sum, inv) => sum + (inv.shares || 0), 0);
-    if (totalShares === 0) {
-      return res.status(400).json({ message: 'No shares found for investors.' });
+
+    // Insert ownerships based on contributions
+    for (const c of contributions) {
+      const percent = ((Number(c.amount) / total) * 100).toFixed(2);
+      await pool.query(
+        'INSERT INTO asset_ownership (asset_id, investor_id, percentage) VALUES (?, ?, ?)',
+        [assetId, c.investorId, percent]
+      );
     }
-    // Assign ownership based on shares
-    for (const investor of investors) {
-      const percentage = ((investor.shares || 0) / totalShares) * 100;
-      await pool.query('INSERT INTO asset_ownership (asset_id, investor_id, percentage) VALUES (?, ?, ?)', [assetId, investor.id, percentage]);
-    }
-    res.status(201).json({ message: 'Asset added with dynamic ownership.' });
+
+    // Commit transaction
+    await pool.query('COMMIT');
+
+    res.status(201).json({ message: 'Asset and ownerships recorded.' });
   } catch (err) {
+    // Rollback transaction on error
+    await pool.query('ROLLBACK');
     console.error('Error adding asset:', err);
     res.status(500).json({ message: 'Server error.' });
   }
@@ -41,7 +51,12 @@ router.get('/assets', async (req, res) => {
     const [assets] = await pool.query('SELECT * FROM assets');
     for (const asset of assets) {
       const [owners] = await pool.query('SELECT ao.investor_id, i.name, ao.percentage FROM asset_ownership ao JOIN investors i ON ao.investor_id = i.id WHERE ao.asset_id = ?', [asset.id]);
-      asset.ownerships = owners;
+      // Calculate amount based on percentage and asset value
+      const ownersWithAmount = owners.map(owner => {
+        const amount = (owner.percentage / 100) * asset.value;
+        return { ...owner, amount };
+      });
+      asset.ownerships = ownersWithAmount;
     }
     res.json(assets);
   } catch (err) {

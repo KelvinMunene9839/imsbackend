@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
-import '../widgets/app_theme.dart';
+import '../../widgets/app_theme.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:frontend/config.dart';
+import '../../config.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-class AdminLoginScreen extends StatefulWidget {
-  const AdminLoginScreen({super.key});
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
 
   @override
-  State<AdminLoginScreen> createState() => _AdminLoginScreenState();
+  State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _AdminLoginScreenState extends State<AdminLoginScreen> {
+class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   bool isLoading = false;
@@ -23,7 +24,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
       error = null;
     });
     final response = await http.post(
-      Uri.parse('$backendBaseUrl/api/auth/admin/login'),
+      Uri.parse('$backendBaseUrl/api/auth/investor/login'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'email': emailController.text,
@@ -34,10 +35,16 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
       isLoading = false;
     });
     if (response.statusCode == 200) {
-      Navigator.pushReplacementNamed(context, '/admin');
+      final data = jsonDecode(response.body);
+      final investorId = data['id']?.toString();
+      if (investorId != null) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('investorId', investorId);
+      }
+      Navigator.pushReplacementNamed(context, '/investor');
     } else {
       setState(() {
-        error = 'Login failed. check for email and password.';
+        error = 'Login failed';
       });
     }
   }
@@ -61,7 +68,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    'Admin Login',
+                    'Login',
                     style: Theme.of(context).textTheme.headlineSmall,
                   ),
                   const SizedBox(height: 32),
