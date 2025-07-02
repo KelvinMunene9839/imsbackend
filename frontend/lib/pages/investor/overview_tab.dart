@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'dart:io';
+import 'dart:typed_data';
 import '../../api_client.dart';
 import '../../config.dart';
 import '../../widgets/ims_card.dart';
@@ -28,6 +30,8 @@ class _OverviewTabState extends State<OverviewTab> {
   final TextEditingController emailController = TextEditingController();
   String? error;
   File? _profileImage;
+  Uint8List? _profileImageBytes;
+  String? _profileImageName;
   String? _profileImageUrl;
 
   @override
@@ -41,37 +45,45 @@ class _OverviewTabState extends State<OverviewTab> {
     return prefs.getString('investorId');
   }
 
+  String? buildFullImageUrl(String? imageUrl) {
+    if (imageUrl == null || imageUrl.isEmpty) return null;
+    if (imageUrl.startsWith('http')) return imageUrl;
+    final cleanPath = imageUrl.replaceFirst(RegExp(r'^/+'), '');
+    return '$backendBaseUrl/$cleanPath';
+  }
+
   Future<void> fetchInvestor() async {
     setState(() {
       isLoading = true;
       error = null;
     });
+    final investorId = await getInvestorId();
+    if (investorId == null) {
+      setState(() {
+        error = 'No investor ID found. Please log in again.';
+        isLoading = false;
+      });
+      return;
+    }
     try {
-      final investorId = await getInvestorId();
-      if (investorId == null) {
-        setState(() {
-          error = 'No investor ID found. Please log in again.';
-          isLoading = false;
-        });
-        return;
-      }
       final res = await apiClient.get('/me?id=$investorId');
       if (res.statusCode == 200) {
         final data = Map<String, dynamic>.from(jsonDecode(res.body));
+        final builtUrl = buildFullImageUrl(data['imageUrl']);
         setState(() {
           investorData = data;
           nameController.text = data['name'] ?? '';
           emailController.text = data['email'] ?? '';
-          // Set profile image URL if available
-          _profileImageUrl =
-              data['image'] != null && data['image'].toString().isNotEmpty
-              ? (data['image'].toString().startsWith('http')
-                    ? data['image']
-                    : '$backendBaseUrl/${data['image']}')
-              : null;
-          _profileImage = null; // Reset local image after fetch
+          _profileImageUrl = builtUrl;
+          _profileImage = null;
+          _profileImageBytes = null;
+          _profileImageName = null;
           isLoading = false;
         });
+        // Debug print after state update
+        print(
+          'fetchInvestor: backend imageUrl = \'${data['imageUrl']}\', built _profileImageUrl = $builtUrl',
+        );
       } else {
         setState(() {
           error = 'Failed to load profile.';
@@ -128,12 +140,21 @@ class _OverviewTabState extends State<OverviewTab> {
   }
 
   Future<void> _pickProfileImage(StateSetter setModalState) async {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery);
-    if (picked != null) {
-      setModalState(() {
-        _profileImage = File(picked.path);
-      });
+    final result = await FilePicker.platform.pickFiles(type: FileType.image);
+    if (result != null && result.files.isNotEmpty) {
+      if (kIsWeb) {
+        setModalState(() {
+          _profileImageBytes = result.files.single.bytes;
+          _profileImage = null;
+          _profileImageName = result.files.single.name;
+        });
+      } else {
+        setModalState(() {
+          _profileImage = File(result.files.single.path!);
+          _profileImageBytes = null;
+          _profileImageName = result.files.single.name;
+        });
+      }
     }
   }
 
@@ -153,13 +174,19 @@ class _OverviewTabState extends State<OverviewTab> {
                   children: [
                     CircleAvatar(
                       radius: 40,
-                      backgroundImage: _profileImage != null
+                      backgroundImage: _profileImageBytes != null
+                          ? MemoryImage(_profileImageBytes!)
+                          : _profileImage != null
                           ? FileImage(_profileImage!)
-                          : (_profileImageUrl != null
+                          : (_profileImageUrl != null &&
+                                    _profileImageUrl!.isNotEmpty
                                 ? NetworkImage(_profileImageUrl!)
-                                      as ImageProvider
                                 : null),
-                      child: _profileImage == null && _profileImageUrl == null
+                      child:
+                          (_profileImageBytes == null &&
+                              _profileImage == null &&
+                              (_profileImageUrl == null ||
+                                  _profileImageUrl!.isEmpty))
                           ? const Icon(Icons.person, size: 40)
                           : null,
                     ),
@@ -236,15 +263,40 @@ class _OverviewTabState extends State<OverviewTab> {
         request.files.add(
           await http.MultipartFile.fromPath('image', _profileImage!.path),
         );
+      } else if (_profileImageBytes != null && _profileImageName != null) {
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            'image',
+            _profileImageBytes!,
+            filename: _profileImageName,
+          ),
+        );
       }
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
       if (response.statusCode == 200) {
+        final responseData = Map<String, dynamic>.from(
+          jsonDecode(response.body),
+        );
+        final newImageUrl = buildFullImageUrl(responseData['imageUrl']);
         setModalState(() {
           isEditing = false;
           error = null;
+          _profileImageUrl = newImageUrl;
+          _profileImage = null;
+          _profileImageBytes = null;
+          _profileImageName = null;
         });
-        await fetchInvestor();
+        setState(() {
+          investorData = responseData;
+          _profileImageUrl = newImageUrl;
+          nameController.text = responseData['name'] ?? '';
+          emailController.text = responseData['email'] ?? '';
+        });
+        // Debug print after state update
+        print(
+          'saveProfileWithImage: backend imageUrl = \'${responseData['imageUrl']}\', built _profileImageUrl = $newImageUrl',
+        );
         if (mounted) {
           ScaffoldMessenger.of(
             context,
