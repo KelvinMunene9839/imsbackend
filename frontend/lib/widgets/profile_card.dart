@@ -36,6 +36,17 @@ class ProfileCard extends StatelessWidget {
       spacing = 12.0;
     }
 
+    Widget avatar = CircleAvatar(
+      radius: 40,
+      backgroundColor: Colors.white,
+      backgroundImage: imageUrl != null && imageUrl!.isNotEmpty
+          ? NetworkImage(imageUrl!)
+          : null,
+      child: (imageUrl == null || imageUrl!.isEmpty)
+          ? Icon(Icons.person, color: Color(0xFF18332B), size: 40)
+          : null,
+    );
+
     return Card(
       color: const Color(0xFF18332B),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -45,61 +56,8 @@ class ProfileCard extends StatelessWidget {
             ? Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  CircleAvatar(
-                    backgroundColor: Colors.white,
-                    child: Icon(Icons.person, color: Color(0xFF18332B)),
-                  ),
+                  avatar,
                   SizedBox(height: spacing),
-        padding: const EdgeInsets.all(20.0),
-        child: Row(
-          children: [
-            GestureDetector(
-              onTap: onViewProfile,
-              child: Stack(
-                alignment: Alignment.bottomRight,
-                children: [
-                  CircleAvatar(
-                    radius: 32,
-                    backgroundColor: Colors.white,
-                    backgroundImage: imageUrl != null && imageUrl!.isNotEmpty
-                        ? NetworkImage(imageUrl!)
-                        : null,
-                    child: (imageUrl == null || imageUrl!.isEmpty)
-                        ? Icon(Icons.person, color: Color(0xFF18332B), size: 32)
-                        : null,
-                  ),
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 2,
-                          ),
-                        ],
-                      ),
-                      child: const Padding(
-                        padding: EdgeInsets.all(2.0),
-                        child: Icon(
-                          Icons.edit,
-                          size: 16,
-                          color: Color(0xFF18332B),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
                   Text(
                     name,
                     style: TextStyle(
@@ -111,7 +69,10 @@ class ProfileCard extends StatelessWidget {
                   SizedBox(height: spacing / 2),
                   Text(
                     amount,
-                    style: TextStyle(fontSize: fontSizeAmount, color: Colors.white70),
+                    style: TextStyle(
+                      fontSize: fontSizeAmount,
+                      color: Colors.white70,
+                    ),
                   ),
                   SizedBox(height: spacing),
                   ElevatedButton(
@@ -129,10 +90,7 @@ class ProfileCard extends StatelessWidget {
               )
             : Row(
                 children: [
-                  CircleAvatar(
-                    backgroundColor: Colors.white,
-                    child: Icon(Icons.person, color: Color(0xFF18332B)),
-                  ),
+                  avatar,
                   SizedBox(width: spacing),
                   Expanded(
                     child: Column(
@@ -149,7 +107,10 @@ class ProfileCard extends StatelessWidget {
                         SizedBox(height: spacing / 4),
                         Text(
                           amount,
-                          style: TextStyle(fontSize: fontSizeAmount, color: Colors.white70),
+                          style: TextStyle(
+                            fontSize: fontSizeAmount,
+                            color: Colors.white70,
+                          ),
                         ),
                       ],
                     ),
