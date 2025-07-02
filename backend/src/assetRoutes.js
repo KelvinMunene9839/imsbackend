@@ -87,4 +87,47 @@ router.put('/asset/:id', async (req, res) => {
   }
 });
 
+router.get('/investor/assets', async (req, res) => {
+  const investorId = req.query.investorId;
+  console.log('GET /investor/assets called with investorId:', investorId);
+  if (!investorId) {
+    console.log('Missing investorId query parameter.');
+    return res.status(400).json({ message: 'Missing investorId query parameter.' });
+  }
+  try {
+    const [assets] = await pool.query('SELECT * FROM assets');
+    const filteredAssets = [];
+    for (const asset of assets) {
+      const [owners] = await pool.query(
+        'SELECT ao.investor_id, i.name, ao.percentage FROM asset_ownership ao JOIN investors i ON ao.investor_id = i.id WHERE ao.asset_id = ? AND ao.investor_id = ?',
+        [asset.id, investorId]
+      );
+      console.log(`Asset ${asset.id} owners for investor ${investorId}:`, owners);
+      if (owners.length > 0) {
+        const ownersWithAmount = owners.map(owner => {
+          const amount = (owner.percentage / 100) * asset.value;
+          return { ...owner, amount };
+        });
+        asset.ownerships = ownersWithAmount;
+        filteredAssets.push(asset);
+      }
+    }
+    console.log('Filtered assets:', filteredAssets);
+    res.json(filteredAssets);
+  } catch (err) {
+    console.error('Error in /investor/assets:', err);
+    res.status(500).json({ message: 'Server error.' });
+  }
+});
+
+// Get total asset value
+router.get('/total-asset-value', async (req, res) => {
+  try {
+    const [[{ total }]] = await pool.query('SELECT SUM(value) as total FROM assets');
+    res.json({ total: total || 0 });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error.' });
+  }
+});
+
 export default router;

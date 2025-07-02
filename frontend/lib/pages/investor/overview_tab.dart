@@ -393,7 +393,7 @@ class _OverviewTabState extends State<OverviewTab> {
             subtitle: Text(date),
             trailing: Text(status),
           );
-        }).toList(),
+        }),
         TextButton(
           onPressed: () {
             // Navigate to Contributions tab or page

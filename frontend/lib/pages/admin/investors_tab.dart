@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:frontend/config.dart';
 import 'package:frontend/api_client.dart';
-import '../../widgets/investor_list_item.dart';
 
 class InvestorsTab extends StatefulWidget {
   const InvestorsTab({super.key});
