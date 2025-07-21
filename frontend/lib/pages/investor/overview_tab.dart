@@ -337,8 +337,8 @@ class _OverviewTabState extends State<OverviewTab> {
               : 220,
           child: StatCard(
             title: 'Total Contributions',
-            value: '\$${investorData!['total_contributions'] ?? '0'}',
-            icon: Icons.attach_money,
+            value: 'RWF${investorData!['total_contributions'] ?? '0'}',
+            icon: Icons.monetization_on,
             color: Colors.green,
           ),
         ),
