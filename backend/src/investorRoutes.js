@@ -3,6 +3,7 @@ import pool from './db.js';
 import multer from 'multer';
 import fs from 'fs/promises'; // Import for file system operations (e.g., deleting old images)
 import path from 'path'; // Import for path manipulation
+import errorMessages from './errorMessages.js'; // Import error messages
 
 // Determine __dirname for ES Modules
 import { fileURLToPath } from 'url';
@@ -47,7 +48,7 @@ router.post('/admin/investor', upload.single('image'), async (req, res) => {
   }
 
   if (!name || !email || !password) {
-    return res.status(400).json({ message: 'Name, email, and password are required.' });
+    return res.status(400).json({ message: errorMessages.MISSING_FIELDS });
   }
 
   try {
@@ -57,7 +58,7 @@ router.post('/admin/investor', upload.single('image'), async (req, res) => {
       if (req.file) { // If an image was uploaded, delete it before sending error
         await fs.unlink(path.join(__dirname, '..', req.file.path));
       }
-      return res.status(409).json({ message: 'Investor with this email already exists.' });
+      return res.status(409).json({ message: errorMessages.INVESTOR_EXISTS });
     }
 
     // Hash password before saving (recommended: use bcrypt)
@@ -76,7 +77,7 @@ router.post('/admin/investor', upload.single('image'), async (req, res) => {
         console.error('Error deleting uploaded file after failed DB insert:', fileErr);
       }
     }
-    res.status(500).json({ message: 'Server error: Failed to add investor.' });
+    res.status(500).json({ message: errorMessages.SERVER_ERROR });
   }
 });
 
@@ -87,7 +88,7 @@ router.get('/admin/investor', async (req, res) => {
     res.json(investors);
   } catch (err) {
     console.error('Error fetching investors:', err);
-    res.status(500).json({ message: 'Server error: Failed to fetch investors.' });
+    res.status(500).json({ message: errorMessages.SERVER_ERROR });
   }
 });
 
@@ -99,7 +100,7 @@ router.patch('/admin/investor/:id', upload.single('image'), async (req, res) => 
   if (!investorId) {
     // This check is technically redundant if using :id in path, but good for clarity
     if (req.file) await fs.unlink(req.file.path); // Clean up if file uploaded
-    return res.status(400).json({ message: 'Investor ID required.' });
+    return res.status(400).json({ message: errorMessages.INVALID_INPUT });
   }
 
   try {
@@ -110,7 +111,7 @@ router.patch('/admin/investor/:id', upload.single('image'), async (req, res) => 
 
     if (investorRows.length === 0) {
       if (req.file) await fs.unlink(req.file.path); // Clean up if file uploaded
-      return res.status(404).json({ message: 'Investor not found.' });
+      return res.status(404).json({ message: errorMessages.INVESTOR_NOT_FOUND });
     }
 
     const currentImageUrl = investorRows[0].imageUrl;
@@ -167,7 +168,7 @@ router.patch('/admin/investor/:id', upload.single('image'), async (req, res) => 
     values.push(newImageUrl);
 
     if (fields.length === 0) {
-      return res.status(400).json({ message: 'No fields to update.' });
+      return res.status(400).json({ message: errorMessages.NO_FIELDS_TO_UPDATE });
     }
 
     values.push(investorId); // Last value for WHERE clause
@@ -179,7 +180,7 @@ router.patch('/admin/investor/:id', upload.single('image'), async (req, res) => 
       [investorId]
     );
     if (updatedRows.length === 0) {
-      return res.status(404).json({ message: 'Investor not found after update.' });
+      return res.status(404).json({ message: errorMessages.INVESTOR_NOT_FOUND });
     }
     // Calculate percentage share for consistency with GET /me
     const [[{ totalAll }]] = await pool.query('SELECT SUM(total_contributions) as totalAll FROM investors');
@@ -199,7 +200,7 @@ router.patch('/admin/investor/:id', upload.single('image'), async (req, res) => 
         console.error('Error deleting newly uploaded file after failed DB update:', fileErr);
       }
     }
-    res.status(500).json({ message: 'Server error: Failed to update profile.', error: err.message });
+    res.status(500).json({ message: errorMessages.SERVER_ERROR, error: err.message });
   }
 });
 
@@ -214,7 +215,7 @@ router.delete('/admin/investor/:id', async (req, res) => {
     const [result] = await pool.query('DELETE FROM investors WHERE id = ?', [investorId]);
 
     if (result.affectedRows === 0) {
-      return res.status(404).json({ message: 'Investor not found.' });
+      return res.status(404).json({ message: errorMessages.INVESTOR_NOT_FOUND });
     }
 
     // If an image existed, attempt to delete the file
@@ -229,7 +230,7 @@ router.delete('/admin/investor/:id', async (req, res) => {
       }
     }
 
-    res.json({ message: 'Investor deleted successfully.' });
+    res.json({ message: errorMessages.DELETE_SUCCESS });
   } catch (err) {
     console.error('Error deleting investor:', err);
     res.status(500).json({ message: 'Server error: Failed to delete investor.' });
@@ -241,10 +242,10 @@ router.delete('/admin/investor/:id', async (req, res) => {
 // Get investor dashboard (self)
 router.get('/me', async (req, res) => {
   const investorId = req.query.id;
-  if (!investorId) return res.status(400).json({ message: 'Investor id required.' });
+  if (!investorId) return res.status(400).json({ message: errorMessages.INVALID_INPUT });
   try {
     const [investorRows] = await pool.query('SELECT id, name, email, total_contributions, status, imageUrl FROM investors WHERE id = ?', [investorId]);
-    if (investorRows.length === 0) return res.status(404).json({ message: 'Investor not found.' });
+    if (investorRows.length === 0) return res.status(404).json({ message: errorMessages.INVESTOR_NOT_FOUND });
     // Get transactions
     const [transactions] = await pool.query('SELECT * FROM transactions WHERE investor_id = ?', [investorId]);
     // Calculate percentage share
@@ -256,7 +257,7 @@ router.get('/me', async (req, res) => {
     res.json({ ...investorRows[0], percentage_share, transactions });
   } catch (err) {
     console.error('Error in /me route:', err); // Added error logging
-    res.status(500).json({ message: 'Server error.' });
+    res.status(500).json({ message: errorMessages.SERVER_ERROR });
   }
 });
 
@@ -273,7 +274,7 @@ router.post('/transaction', async (req, res) => {
     res.status(201).json({ message: 'Transaction submitted for approval.' });
   } catch (err) {
     console.error('Error in /transaction route:', err); // Added error logging
-    res.status(500).json({ message: 'Server error.' });
+    res.status(500).json({ message: errorMessages.SERVER_ERROR });
   }
 });
 
@@ -285,7 +286,7 @@ router.patch('/me', upload.single('image'), async (req, res) => {
   const investorId = req.query.id; // Correctly get investorId from query parameters
 
   if (!investorId) {
-    return res.status(400).json({ message: 'Investor id required.' });
+    return res.status(400).json({ message: errorMessages.INVALID_INPUT });
   }
 
   try {
@@ -295,10 +296,10 @@ router.patch('/me', upload.single('image'), async (req, res) => {
       [investorId]
     );
 
-    if (investorRows.length === 0) {
-      if (req.file) await fs.unlink(req.file.path); // Clean up if file uploaded
-      return res.status(404).json({ message: 'Investor not found.' });
-    }
+  if (investorRows.length === 0) {
+    if (req.file) await fs.unlink(req.file.path); // Clean up if file uploaded
+    return res.status(404).json({ message: errorMessages.INVESTOR_NOT_FOUND });
+  }
 
     const { name, email } = req.body;
     let newImageUrl = investorRows[0].imageUrl; // Initialize with existing image URL
@@ -382,7 +383,7 @@ router.patch('/me', upload.single('image'), async (req, res) => {
         console.error('Error deleting newly uploaded file after failed DB update:', fileErr);
       }
     }
-    res.status(500).json({ message: 'Server error: Failed to update profile.', error: err.message });
+  res.status(500).json({ message: errorMessages.SERVER_ERROR, error: err.message });
   }
 });
 
@@ -390,22 +391,22 @@ router.patch('/me', upload.single('image'), async (req, res) => {
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {
-    return res.status(400).json({ error: 'Email and password are required.' });
+    return res.status(400).json({ error: errorMessages.MISSING_FIELDS });
   }
   try {
     const [rows] = await pool.query('SELECT id, email, password FROM investors WHERE email = ?', [email]);
-    if (rows.length === 0) {
-      return res.status(401).json({ error: 'Invalid email or password.' });
-    }
+  if (rows.length === 0) {
+    return res.status(401).json({ error: errorMessages.INVALID_CREDENTIALS });
+  }
     const investor = rows[0];
     // NOTE: In production, use bcrypt to compare hashed passwords!
-    if (investor.password !== password) {
-      return res.status(401).json({ error: 'Invalid email or password.' });
-    }
+  if (investor.password !== password) {
+    return res.status(401).json({ error: errorMessages.INVALID_CREDENTIALS });
+  }
     res.json({ id: investor.id, email: investor.email });
   } catch (err) {
     console.error('Error in investor login:', err);
-    res.status(500).json({ error: 'Server error: Failed to login.' });
+  res.status(500).json({ error: errorMessages.SERVER_ERROR });
   }
 });
 

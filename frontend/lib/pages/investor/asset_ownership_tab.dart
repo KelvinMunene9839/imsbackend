@@ -3,12 +3,14 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../../config.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../error_messages.dart';
 
 class InvestorAssetOwnershipTab extends StatefulWidget {
   const InvestorAssetOwnershipTab({super.key});
 
   @override
-  State<InvestorAssetOwnershipTab> createState() => _InvestorAssetOwnershipTabState();
+  State<InvestorAssetOwnershipTab> createState() =>
+      _InvestorAssetOwnershipTabState();
 }
 
 class _InvestorAssetOwnershipTabState extends State<InvestorAssetOwnershipTab> {
@@ -32,13 +34,14 @@ class _InvestorAssetOwnershipTabState extends State<InvestorAssetOwnershipTab> {
       final investorId = prefs.getString('investorId');
       if (investorId == null) {
         setState(() {
-          error = 'Investor ID not found. Please login again.';
+          error = ErrorMessages.investorIdNotFound;
           isLoading = false;
         });
         return;
       }
+      final url = '$backendBaseUrl/api/admin/investor/assets?investorId=$investorId';
       final response = await http.get(
-        Uri.parse('$backendBaseUrl/api/investor/assets?investorId=$investorId'),
+        Uri.parse(url),
         headers: {'Content-Type': 'application/json'},
       );
       if (response.statusCode == 200) {
@@ -48,13 +51,13 @@ class _InvestorAssetOwnershipTabState extends State<InvestorAssetOwnershipTab> {
         });
       } else {
         setState(() {
-          error = 'Failed to fetch asset ownership data.';
+          error = ErrorMessages.failedToFetchData;
           isLoading = false;
         });
       }
     } catch (e) {
       setState(() {
-        error = 'Error: \$e';
+        error = '${ErrorMessages.serverError} Exception: $e';
         isLoading = false;
       });
     }
@@ -66,7 +69,9 @@ class _InvestorAssetOwnershipTabState extends State<InvestorAssetOwnershipTab> {
       return const Center(child: CircularProgressIndicator());
     }
     if (error != null) {
-      return Center(child: Text(error!, style: const TextStyle(color: Colors.red)));
+      return Center(
+        child: Text(error!, style: const TextStyle(color: Colors.red)),
+      );
     }
     if (assets.isEmpty) {
       return const Center(child: Text('No asset ownership data available.'));
@@ -86,7 +91,10 @@ class _InvestorAssetOwnershipTabState extends State<InvestorAssetOwnershipTab> {
             child: ExpansionTile(
               title: Text(
                 asset['name'] ?? 'Unnamed Asset',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
               ),
               subtitle: Text("Value: ₦${asset['value'] ?? 'N/A'}"),
               children: [
@@ -97,11 +105,16 @@ class _InvestorAssetOwnershipTabState extends State<InvestorAssetOwnershipTab> {
                   )
                 else
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     child: Column(
                       children: ownerships.map((o) {
                         final percentRaw = o['percentage'] ?? 0;
-                        final percent = (percentRaw is String) ? double.tryParse(percentRaw) ?? 0.0 : (percentRaw as num).toDouble();
+                        final percent = (percentRaw is String)
+                            ? double.tryParse(percentRaw) ?? 0.0
+                            : (percentRaw as num).toDouble();
                         return Padding(
                           padding: const EdgeInsets.symmetric(vertical: 8.0),
                           child: Row(
@@ -127,7 +140,10 @@ class _InvestorAssetOwnershipTabState extends State<InvestorAssetOwnershipTab> {
                                     const SizedBox(height: 4),
                                     Text(
                                       "${percent.toStringAsFixed(2)}%  (₦${o['amount'] ?? 'N/A'})",
-                                      style: const TextStyle(fontSize: 13, color: Colors.black54),
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.black54,
+                                      ),
                                     ),
                                   ],
                                 ),
