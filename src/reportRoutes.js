@@ -31,7 +31,7 @@ router.get('/report/contributions/yearly', async (req, res) => {
       GROUP BY i.id, year
       ORDER BY year DESC
     `);
-    res.json(rows);
+    res.status(200).json({message:"contributions found successfully",rows});
   } catch (err) {
     res.status(500).json({ message: 'Server error.' });
   }
@@ -47,7 +47,9 @@ router.get('/report/assets', async (req, res) => {
     }
     // Fix: Ensure proper JSON formatting by serializing assets explicitly
     res.setHeader('Content-Type', 'application/json');
-    res.send(JSON.stringify(assets));
+    res.status(200).json({message:"Assets returned successfully",data:assets,count:assets.length})
+    // res.send(JSON.stringify(assets));
+
   } catch (err) {
     res.status(500).json({ message: 'Server error.' });
   }

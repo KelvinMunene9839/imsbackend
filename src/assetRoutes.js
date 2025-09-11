@@ -124,7 +124,7 @@ router.get('/investor/assets', async (req, res) => {
 router.get('/total-asset-value', async (req, res) => {
   try {
     const [[{ total }]] = await pool.query('SELECT SUM(value) as total FROM assets');
-    res.json({ total: total || 0 });
+    res.status(200).json({ message:"Total asset value is found", total: total || 0 });
   } catch (err) {
     res.status(500).json({ message: 'Server error.' });
   }
