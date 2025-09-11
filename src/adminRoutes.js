@@ -58,6 +58,76 @@ router.delete('/investor/:id', async (req, res) => {
   }
 });
 
+// Get all investors
+router.get('/investors', async (req, res) => {
+  try {
+    const [investors] = await pool.query('SELECT id, name, email, status FROM investors');
+    res.json(investors);
+  } catch (err) {
+    res.status(500).json({ message: 'Server error.' });
+  }
+});
+
+// Get pending approvals (transactions)
+router.get('/pending-approvals', async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT t.*, i.name as investor_name FROM transactions t JOIN investors i ON t.investor_id = i.id WHERE t.status = ?', ['pending']);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ message: 'Server error.' });
+  }
+});
+
+// Get assets report
+router.get('/report/assets', async (req, res) => {
+  try {
+    const [assets] = await pool.query('SELECT * FROM assets');
+    res.json(assets);
+  } catch (err) {
+    res.status(500).json({ message: 'Server error.' });
+  }
+});
+
+// Get yearly contributions report
+router.get('/report/contributions/yearly', async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT YEAR(created_at) as year, SUM(amount) as total FROM transactions WHERE status = ? GROUP BY YEAR(created_at)', ['approved']);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ message: 'Server error.' });
+  }
+});
+
+// Get total asset value
+router.get('/total-asset-value', async (req, res) => {
+  try {
+    const [[{ total }]] = await pool.query('SELECT SUM(value) as total FROM assets');
+    res.json({ total: total || 0 });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error.' });
+  }
+});
+
+// Get interests report
+router.get('/report/interests', async (req, res) => {
+  try {
+    const [interests] = await pool.query('SELECT * FROM interest_rates');
+    res.json(interests);
+  } catch (err) {
+    res.status(500).json({ message: 'Server error.' });
+  }
+});
+
+// Get monthly contributions report
+router.get('/report/contributions/monthly', async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT MONTH(created_at) as month, YEAR(created_at) as year, SUM(amount) as total FROM transactions WHERE status = ? GROUP BY YEAR(created_at), MONTH(created_at)', ['approved']);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ message: 'Server error.' });
+  }
+});
+
 // Add, edit, and manage assets, interest rates, penalties, and investors would be implemented similarly.
 
 export default router;
