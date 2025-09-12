@@ -47,7 +47,7 @@ router.patch('/investor/:id/status', async (req, res) => {
 router.get('/investor', async (req, res) => {
   try {
     const [investors] = await pool.query('SELECT id, name, email, status FROM investors');
-    res.status(200).json({message:"Investors found successfully",investors,number:investors.length});
+    res.status(200).json({message:"Investors found successfully" ,investors,number:investors.length});
   } catch (err) {
     res.status(500).json({ message: 'Server error.' });
   }

@@ -31,7 +31,7 @@ router.post('/penalty', async (req, res) => {
     await pool.query('INSERT INTO penalties (amount, reason, investor_id, date) VALUES (?, ?, ?, ?)', [amount, reason, investor_id, date]);
     res.status(201).json({ message: 'Penalty applied.' });
   } catch (err) {
-    res.status(500).json({ message: 'Server error.' });
+    res.status(500).json({ message: 'Server error. ' });
   }
 });
 

@@ -115,7 +115,7 @@ router.get('/investor/assets', async (req, res) => {
     console.log('Filtered assets:', filteredAssets);
     res.json(filteredAssets);
   } catch (err) {
-    console.error('Error in /investor/assets:', err);
+    console.error('Error in /investor/assets :', err);
     res.status(500).json({ message: 'Server error.' });
   }
 });

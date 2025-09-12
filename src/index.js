@@ -13,14 +13,14 @@ dotenv.config();
 
 const app = express();
 app.use(cors({
-  origin: 'http://localhost:3000', // React frontend URL
+  origin: 'http://localhost:5173', // React frontend URL
   credentials: true
 }));
 app.use(express.json({ extended: true }));
 
 
 app.get('/', (req, res) => {
-  res.send('Investor Management System API is running.');
+  res.send('Investor Management System API is running. ');
 });
 
 app.use('/api/auth', authRoutes);

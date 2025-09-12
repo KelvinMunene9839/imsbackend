@@ -15,17 +15,52 @@ export async function registerInvestor(req, res) {
 }
 
 export async function loginInvestor(req, res) {
-  const { email, password } = req.body;
   try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Email and password are required.' 
+      });
+    }
+
     const [rows] = await pool.query('SELECT * FROM investors WHERE email = ?', [email]);
-    if (rows.length === 0) return res.status(400).json({ message: 'Invalid credentials.' });
+
+    if (rows.length === 0) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Invalid credentials.' 
+      });
+    }
+
     const investor = rows[0];
     const match = await bcrypt.compare(password, investor.password_hash);
-    if (!match) return res.status(400).json({ message: 'Invalid credentials.' });
-    // Return id, name, email for frontend
-    res.json({ id: investor.id, name: investor.name, email: investor.email, message: 'Login successful.' });
+
+    if (!match) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Invalid credentials.' 
+      });
+    }
+
+    // Return consistent response structure
+    res.status(200).json({ 
+      success: true,
+      data: { 
+        id: investor.id, 
+        name: investor.name, 
+        email: investor.email 
+      },
+      message: 'Login successful.' 
+    });
+    
   } catch (err) {
-    res.status(500).json({ message: 'Server error.' });
+    console.error(err);
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error.' 
+    });
   }
 }
 
