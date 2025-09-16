@@ -1,6 +1,9 @@
 import bcrypt from 'bcrypt';
 import pool from './db.js';
+import jwt from 'jsonwebtoken'
+import dotenv from 'dotenv'
 
+dotenv.config()
 export async function registerInvestor(req, res) {
   const { name, email, password } = req.body;
   try {
@@ -36,6 +39,12 @@ export async function loginInvestor(req, res) {
 
     const investor = rows[0];
     const match = await bcrypt.compare(password, investor.password_hash);
+    //generating token
+    const token = jwt.sign(
+      {id:investor.id,username:investor.username,password:investor.password},process.env.JWT_SECRET,{expiresIn:'1h'}
+    );
+    console.log(process.env.JWT_SECRET)
+    res.json({ token });
 
     if (!match) {
       return res.status(400).json({ 
@@ -62,6 +71,19 @@ export async function loginInvestor(req, res) {
       message: 'Server error.' 
     });
   }
+}
+
+export async function getUser(req,res){
+  const token = req.headers.authorization?.split(' ')[1];
+    if (!token) {
+        return res.status(401).json({message:"Token missing"});
+    }
+    try {
+        const decoded = jwt.verify(token,process.env.JWT_SECRET);
+        res.json({message:`Welcome, ${decoded.username}`});
+    } catch (err) {
+        res.status(403).json({message:'Invalid token',err});
+    }
 }
 
 export async function loginAdmin(req, res) {

@@ -8,6 +8,7 @@ import assetRoutes from './assetRoutes.js';
 import investorAdminRoutes from './investorAdminRoutes.js';
 import interestPenaltyRoutes from './interestPenaltyRoutes.js';
 import reportRoutes from './reportRoutes.js';
+import jwt from 'jsonwebtoken'
 
 dotenv.config();
 
@@ -22,6 +23,7 @@ app.use(express.json({ extended: true }));
 app.get('/', (req, res) => {
   res.send('Investor Management System API is running. ');
 });
+
 
 app.use('/api/auth', authRoutes);
 app.use('/api/investor', investorRoutes);

@@ -20,13 +20,16 @@ router.post('/investor', async (req, res) => {
 
 // Update investor details
 router.put('/investor/:id', async (req, res) => {
-  const { name, email, status } = req.body;
-  const { id } = req.params;
   try {
+    const { name, email, status } = req.body;
+    const { id } = req.params;
+    if (!req.body) {
+      res.status(400).json({message:"This is not required body"})
+    }
     await pool.query('UPDATE investors SET name = ?, email = ?, status = ? WHERE id = ?', [name, email, status, id]);
     res.json({ message: 'Investor updated.' });
   } catch (err) {
-    res.status(500).json({ message: 'Server error.' });
+    res.status(500).json({ message: 'Server error.',err });
   }
 });
 
