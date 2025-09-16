@@ -8,6 +8,7 @@ import assetRoutes from './assetRoutes.js';
 import investorAdminRoutes from './investorAdminRoutes.js';
 import interestPenaltyRoutes from './interestPenaltyRoutes.js';
 import reportRoutes from './reportRoutes.js';
+import bondRoutes from './bondRoutes.js';
 
 dotenv.config();
 
@@ -30,6 +31,7 @@ app.use('/api/admin', assetRoutes);
 app.use('/api/admin', investorAdminRoutes);
 app.use('/api/admin', interestPenaltyRoutes);
 app.use('/api/admin', reportRoutes);
+app.use('/api/admin', bondRoutes);
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, '0.0.0.0', () => {

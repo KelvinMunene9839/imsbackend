@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS investors (
     name VARCHAR(100) NOT NULL,
     email VARCHAR(100) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
-    total_contributions DECIMAL(15,2) DEFAULT 0,
+    total_bonds DECIMAL(15,2) DEFAULT 0,
     percentage_share DECIMAL(5,2) DEFAULT 0,
     status ENUM('active', 'suspended', 'deactivated') DEFAULT 'active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS transactions (
     investor_id INT NOT NULL,
     amount DECIMAL(15,2) NOT NULL,
     date DATE NOT NULL,
+    type ENUM('contribution', 'interest') DEFAULT 'contribution',
     status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (investor_id) REFERENCES investors(id)
@@ -59,6 +60,19 @@ CREATE TABLE IF NOT EXISTS penalties (
     reason VARCHAR(255),
     investor_id INT NOT NULL,
     date DATE NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (investor_id) REFERENCES investors(id)
+);
+
+-- Bond Contributions Table
+CREATE TABLE IF NOT EXISTS bond_contributions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    investor_id INT NOT NULL,
+    bond_amount DECIMAL(15,2) NOT NULL,
+    interest_rate DECIMAL(5,2) NOT NULL,
+    maturity_months INT NOT NULL,
+    start_date DATE NOT NULL,
+    status ENUM('active', 'matured') DEFAULT 'active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (investor_id) REFERENCES investors(id)
 );
