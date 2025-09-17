@@ -44,7 +44,7 @@ export async function loginInvestor(req, res) {
       {id:investor.id,username:investor.username,password:investor.password},process.env.JWT_SECRET,{expiresIn:'1h'}
     );
     console.log(process.env.JWT_SECRET)
-    res.json({ token });
+    res.json({ token,role:"investor",investorId:investor.id });
 
     if (!match) {
       return res.status(400).json({ 
@@ -99,7 +99,10 @@ export async function loginAdmin(req, res) {
     const match = await bcrypt.compare(password, admin.password_hash);
     if (!match) return res.status(400).json({ message: 'Invalid credentials.' });
     // TODO: Add 2FA check here
-    res.json({ message: 'Login successful.' });
+    const token = jwt.sign(
+      {id:admin.id,username:admin.username,password:admin.password},process.env.JWT_SECRET,{expiresIn:'1h'}
+    );
+    res.json({ message: 'Login successful.',token:token,role:"admin" });
   } catch (err) {
     console.error('Error in loginAdmin:', err);
     res.status(500).json({ message: 'Server error.' });
