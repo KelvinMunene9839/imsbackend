@@ -1,11 +1,27 @@
 import express from 'express';
 import pool from './db.js';
+import multer from 'multer';
+import path from 'path';
 
 const router = express.Router();
 
+// Set up multer for file uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/'); // Directory to save uploaded files
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({ storage: storage });
+
 // Add a new asset with dynamic ownership based on investor shares
-router.post('/asset', async (req, res) => {
+router.post('/asset', upload.single('document'), async (req, res) => {
   const { name, value, contributions } = req.body;
+  const document = req.file ? req.file.path : null;
   if (!name || !value || !Array.isArray(contributions) || contributions.length === 0) {
     return res.status(400).json({ message: 'Missing required fields.' });
   }
@@ -21,7 +37,7 @@ router.post('/asset', async (req, res) => {
     await pool.query('START TRANSACTION');
 
     // Insert the asset
-    const [result] = await pool.query('INSERT INTO assets (name, value) VALUES (?, ?)', [name, value]);
+    const [result] = await pool.query('INSERT INTO assets (name, value, document) VALUES (?, ?, ?)', [name, value, document]);
     const assetId = result.insertId;
 
     // Insert ownerships based on contributions
@@ -31,6 +47,12 @@ router.post('/asset', async (req, res) => {
         'INSERT INTO asset_ownership (asset_id, investor_id, percentage) VALUES (?, ?, ?)',
         [assetId, c.investorId, percent]
       );
+    }
+
+    // Deduct the asset value from total_bonds of each investor proportionally
+    for (const c of contributions) {
+      const deduction = (Number(c.amount) / total) * Number(value);
+      await pool.query('UPDATE investors SET total_bonds = total_bonds - ? WHERE id = ?', [deduction, c.investorId]);
     }
 
     // Commit transaction

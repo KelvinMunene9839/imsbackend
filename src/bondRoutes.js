@@ -31,22 +31,25 @@ router.get('/bonds', async (req, res) => {
   }
 });
 
-// Add interest to a matured bond
-router.post('/interest', async (req, res) => {
-  const { bond_id, interest_amount, date } = req.body;
+// Add global interest to all bonds
+router.post('/interest/global', async (req, res) => {
+  const { interest_amount, date } = req.body;
   try {
-    // Get bond
-    const [bonds] = await pool.query('SELECT * FROM bond_contributions WHERE id = ?', [bond_id]);
-    if (bonds.length === 0) return res.status(404).json({ message: 'Bond not found.' });
-    const bond = bonds[0];
-    // Insert interest transaction
-    await pool.query('INSERT INTO transactions (investor_id, amount, date, type, status) VALUES (?, ?, ?, ?, ?)', [bond.investor_id, interest_amount, date, 'interest', 'approved']);
-    // Update total_bonds
-    const [[{ total }]] = await pool.query('SELECT SUM(amount) as total FROM transactions WHERE investor_id = ? AND status = ?', [bond.investor_id, 'approved']);
-    await pool.query('UPDATE investors SET total_bonds = ? WHERE id = ?', [total || 0, bond.investor_id]);
-    // Update bond status to matured
-    await pool.query('UPDATE bond_contributions SET status = ? WHERE id = ?', ['matured', bond_id]);
-    res.status(201).json({ message: 'Interest added.' });
+    // Get total bonds
+    const [[{ totalAllBonds }]] = await pool.query('SELECT SUM(total_bonds) as totalAllBonds FROM investors');
+    if (!totalAllBonds || totalAllBonds <= 0) return res.status(400).json({ message: 'No bonds found.' });
+    // Get all investors with bonds
+    const [investors] = await pool.query('SELECT id, total_bonds FROM investors WHERE total_bonds > 0');
+    // For each investor, calculate interest and insert transaction
+    for (const inv of investors) {
+      const percentage = inv.total_bonds / totalAllBonds;
+      const interest = interest_amount * percentage;
+      await pool.query('INSERT INTO transactions (investor_id, amount, date, type, status) VALUES (?, ?, ?, ?, ?)', [inv.id, interest, date, 'interest', 'approved']);
+      // Update total_bonds
+      const [[{ total }]] = await pool.query('SELECT SUM(amount) as total FROM transactions WHERE investor_id = ? AND status = ?', [inv.id, 'approved']);
+      await pool.query('UPDATE investors SET total_bonds = ? WHERE id = ?', [total || 0, inv.id]);
+    }
+    res.status(201).json({ message: 'Global interest added and distributed.' });
   } catch (err) {
     res.status(500).json({ message: 'Server error.' });
   }

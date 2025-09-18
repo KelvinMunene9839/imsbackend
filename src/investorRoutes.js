@@ -24,17 +24,23 @@ router.get('/me', async (req, res) => {
   }
 });
 
-// Record a new transaction (pending approval)
+// Record a new transaction (pending approval) - now as bond contribution
 router.post('/transaction', async (req, res) => {
   const investorId = req.query.id;
   if (!investorId) return res.status(400).json({ message: 'Investor id required.' });
   const { amount, date } = req.body;
   try {
-    await pool.query('INSERT INTO transactions (investor_id, amount, date, status) VALUES (?, ?, ?, ?)', [investorId, amount, date, 'pending']);
-    // Update total_contributions for the investor (sum of all approved and pending transactions)
+    // Insert bond contribution with default values
+    const interestRate = 5; // default 5%
+    const maturityMonths = 12; // default 12 months
+    const [result] = await pool.query('INSERT INTO bond_contributions (investor_id, bond_amount, interest_rate, maturity_months, start_date) VALUES (?, ?, ?, ?, ?)', [investorId, amount, interestRate, maturityMonths, date]);
+    const bondId = result.insertId;
+    // Insert transaction
+    await pool.query('INSERT INTO transactions (investor_id, amount, date, type, status) VALUES (?, ?, ?, ?, ?)', [investorId, amount, date, 'contribution', 'pending']);
+    // Update total_contributions and total_bonds for the investor (sum of all approved and pending transactions)
     const [[{ total }]] = await pool.query('SELECT SUM(amount) as total FROM transactions WHERE investor_id = ?', [investorId]);
-    await pool.query('UPDATE investors SET total_contributions = ? WHERE id = ?', [total || 0, investorId]);
-    res.status(201).json({ message: 'Transaction submitted for approval.' });
+    await pool.query('UPDATE investors SET total_contributions = ?, total_bonds = ? WHERE id = ?', [total || 0, total || 0, investorId]);
+    res.status(201).json({ message: 'Bond contribution submitted for approval.', bondId });
   } catch (err) {
     res.status(500).json({ message: 'Server error.' });
   }
