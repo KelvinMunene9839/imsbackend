@@ -1,6 +1,9 @@
 import bcrypt from 'bcrypt';
 import pool from './db.js';
+import jwt from 'jsonwebtoken'
+import dotenv from 'dotenv'
 
+dotenv.config()
 export async function registerInvestor(req, res) {
   const { name, email, password } = req.body;
   try {
@@ -15,18 +18,72 @@ export async function registerInvestor(req, res) {
 }
 
 export async function loginInvestor(req, res) {
-  const { email, password } = req.body;
   try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Email and password are required.' 
+      });
+    }
+
     const [rows] = await pool.query('SELECT * FROM investors WHERE email = ?', [email]);
-    if (rows.length === 0) return res.status(400).json({ message: 'Invalid credentials.' });
+
+    if (rows.length === 0) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Invalid credentials.' 
+      });
+    }
+
     const investor = rows[0];
     const match = await bcrypt.compare(password, investor.password_hash);
-    if (!match) return res.status(400).json({ message: 'Invalid credentials.' });
-    // Return id, name, email for frontend
-    res.json({ id: investor.id, name: investor.name, email: investor.email, message: 'Login successful.' });
+    //generating token
+    const token = jwt.sign(
+      {id:investor.id,username:investor.username,password:investor.password},process.env.JWT_SECRET,{expiresIn:'1h'}
+    );
+    console.log(process.env.JWT_SECRET)
+    res.json({ token,role:"investor",investorId:investor.id });
+
+    if (!match) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Invalid credentials.' 
+      });
+    }
+
+    // Return consistent response structure
+    res.status(200).json({ 
+      success: true,
+      data: { 
+        id: investor.id, 
+        name: investor.name, 
+        email: investor.email 
+      },
+      message: 'Login successful.' 
+    });
+    
   } catch (err) {
-    res.status(500).json({ message: 'Server error.' });
+    console.error(err);
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error.' 
+    });
   }
+}
+
+export async function getUser(req,res){
+  const token = req.headers.authorization?.split(' ')[1];
+    if (!token) {
+        return res.status(401).json({message:"Token missing"});
+    }
+    try {
+        const decoded = jwt.verify(token,process.env.JWT_SECRET);
+        res.json({message:`Welcome, ${decoded.username}`});
+    } catch (err) {
+        res.status(403).json({message:'Invalid token',err});
+    }
 }
 
 export async function loginAdmin(req, res) {
@@ -42,7 +99,10 @@ export async function loginAdmin(req, res) {
     const match = await bcrypt.compare(password, admin.password_hash);
     if (!match) return res.status(400).json({ message: 'Invalid credentials.' });
     // TODO: Add 2FA check here
-    res.json({ message: 'Login successful.' });
+    const token = jwt.sign(
+      {id:admin.id,username:admin.username,password:admin.password},process.env.JWT_SECRET,{expiresIn:'1h'}
+    );
+    res.json({ message: 'Login successful.',token:token,role:"admin" });
   } catch (err) {
     console.error('Error in loginAdmin:', err);
     res.status(500).json({ message: 'Server error.' });

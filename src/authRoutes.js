@@ -1,5 +1,5 @@
 import express from 'express';
-import { registerInvestor, loginInvestor, loginAdmin } from './authController.js';
+import { registerInvestor, loginInvestor, loginAdmin, getUser } from './authController.js';
 
 const router = express.Router();
 
@@ -9,5 +9,6 @@ router.post('/investor/register', registerInvestor);
 router.post('/investor/login', loginInvestor);
 // Admin login
 router.post('/admin/login', loginAdmin);
+router.get('/investor/profile', getUser);
 
 export default router;

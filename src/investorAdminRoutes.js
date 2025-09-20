@@ -20,13 +20,16 @@ router.post('/investor', async (req, res) => {
 
 // Update investor details
 router.put('/investor/:id', async (req, res) => {
-  const { name, email, status } = req.body;
-  const { id } = req.params;
   try {
-    await pool.query('UPDATE investors SET name = ?, email = ?, status = ? WHERE id = ?', [name, email, status, id]);
+    const { name, email } = req.body;
+    const { id } = req.params;
+    if (!name || !email) {
+      return res.status(400).json({ message: "Name, email are required." });
+    }
+    await pool.query('UPDATE investors SET name = ?, email = ?  WHERE id = ?', [name, email, id]);
     res.json({ message: 'Investor updated.' });
   } catch (err) {
-    res.status(500).json({ message: 'Server error.' });
+    res.status(500).json({ message: 'Server error.', err });
   }
 });
 
@@ -34,12 +37,20 @@ router.put('/investor/:id', async (req, res) => {
 router.patch('/investor/:id/status', async (req, res) => {
   const { status } = req.body; // 'active', 'suspended', 'deactivated'
   const { id } = req.params;
-  if (!['active', 'suspended', 'deactivated'].includes(status)) return res.status(400).json({ message: 'Invalid status.' });
+  if (!status) {
+    return res.status(400).json({ message: 'Status is required.' });
+  }
+  if (!['active', 'suspended', 'deactivated'].includes(status)) {
+    return res.status(400).json({ message: 'Invalid status.' });
+  }
   try {
-    await pool.query('UPDATE investors SET status = ? WHERE id = ?', [status, id]);
+    const [result] = await pool.query('UPDATE investors SET status = ? WHERE id = ?', [status, id]);
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Investor not found.' });
+    }
     res.json({ message: `Investor status updated to ${status}.` });
   } catch (err) {
-    res.status(500).json({ message: 'Server error.' });
+    res.status(500).json({ message: 'Server error.', error: err.message });
   }
 });
 
@@ -47,7 +58,7 @@ router.patch('/investor/:id/status', async (req, res) => {
 router.get('/investor', async (req, res) => {
   try {
     const [investors] = await pool.query('SELECT id, name, email, status FROM investors');
-    res.json(investors);
+    res.status(200).json({message:"Investors found successfully" ,investors,number:investors.length});
   } catch (err) {
     res.status(500).json({ message: 'Server error.' });
   }
