@@ -12,9 +12,9 @@ async function addAdminUser() {
     database: process.env.DB_NAME || 'ims',
   });
 
-  const email = 'admin@example.com';
+  const email = 'admin@gmail.com';
   const name = 'Admin User';
-  const password = 'password123';
+  const password = '12345678';
 
   const password_hash = await bcrypt.hash(password, 10);
 

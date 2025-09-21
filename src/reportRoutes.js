@@ -3,75 +3,136 @@ import pool from './db.js';
 
 const router = express.Router();
 
-// Monthly contribution report (admin)
-router.get('/report/contributions/monthly', async (req, res) => {
+// Get yearly contributions for all investors with interest calculations
+router.get('/reports/yearly-investments', async (req, res) => {
   try {
-    const [rows] = await pool.query(`
-      SELECT i.id as investor_id, i.name, MONTH(t.date) as month, YEAR(t.date) as year, SUM(t.amount) as total
+    const { year } = req.query;
+    const selectedYear = year || new Date().getFullYear();
+
+    // Get all approved transactions for the selected year
+    const [transactions] = await pool.query(`
+      SELECT
+        t.id,
+        t.investor_id,
+        i.name as investor_name,
+        t.amount,
+        t.date,
+        t.created_at
       FROM transactions t
       JOIN investors i ON t.investor_id = i.id
       WHERE t.status = 'approved'
-      GROUP BY i.id, year, month
-      ORDER BY year DESC, month DESC
-    `);
-    res.json(rows);
-  } catch (err) {
-    res.status(500).json({ message: 'Server error.' });
+      AND YEAR(t.date) = ?
+      ORDER BY t.date ASC
+    `, [selectedYear]);
+
+    // Get interest rates for the selected year
+    const [interestRates] = await pool.query(`
+      SELECT rate, start_date, end_date
+      FROM interest_rates
+      WHERE YEAR(start_date) <= ? AND (YEAR(end_date) >= ? OR end_date IS NULL)
+      ORDER BY start_date DESC
+    `, [selectedYear, selectedYear]);
+
+    // Calculate interest for each transaction
+    const transactionsWithInterest = transactions.map(transaction => {
+      const transactionDate = new Date(transaction.date);
+      const applicableRate = interestRates.find(rate => {
+        const startDate = new Date(rate.start_date);
+        const endDate = rate.end_date ? new Date(rate.end_date) : new Date();
+        return transactionDate >= startDate && transactionDate <= endDate;
+      });
+
+      const interestRate = applicableRate ? applicableRate.rate : 0;
+      const interestAmount = (transaction.amount * interestRate) / 100;
+
+      return {
+        ...transaction,
+        interest_rate: interestRate,
+        interest_amount: interestAmount,
+        total_with_interest: transaction.amount + interestAmount
+      };
+    });
+
+    // Group by investor and calculate totals
+    const investorTotals = {};
+    let grandTotal = 0;
+    let grandTotalInterest = 0;
+
+    transactionsWithInterest.forEach(transaction => {
+      if (!investorTotals[transaction.investor_id]) {
+        investorTotals[transaction.investor_id] = {
+          investor_id: transaction.investor_id,
+          investor_name: transaction.investor_name,
+          transactions: [],
+          total_contribution: 0,
+          total_interest: 0,
+          total_with_interest: 0
+        };
+      }
+
+      investorTotals[transaction.investor_id].transactions.push(transaction);
+      investorTotals[transaction.investor_id].total_contribution += transaction.amount;
+      investorTotals[transaction.investor_id].total_interest += transaction.interest_amount;
+      investorTotals[transaction.investor_id].total_with_interest += transaction.total_with_interest;
+
+      grandTotal += transaction.amount;
+      grandTotalInterest += transaction.interest_amount;
+    });
+
+    res.json({
+      success: true,
+      message: 'Yearly investments retrieved successfully',
+      data: {
+        year: selectedYear,
+        transactions: transactionsWithInterest,
+        investor_totals: Object.values(investorTotals),
+        summary: {
+          total_contribution: grandTotal,
+          total_interest: grandTotalInterest,
+          total_with_interest: grandTotal + grandTotalInterest
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching yearly investments:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch yearly investments',
+      error: error.message
+    });
   }
 });
 
-// Yearly contribution report (admin)
-router.get('/report/contributions/yearly', async (req, res) => {
+// Get contribution history for a specific investor
+router.get('/reports/investor-history/:investorId', async (req, res) => {
   try {
+    const { investorId } = req.params;
+
     const [rows] = await pool.query(`
-      SELECT i.id as investor_id, i.name, YEAR(t.date) as year, SUM(t.amount) as total
-      FROM transactions t
-      JOIN investors i ON t.investor_id = i.id
-      WHERE t.status = 'approved'
-      GROUP BY i.id, year
-      ORDER BY year DESC
-    `);
-    res.status(200).json({message:"contributions found successfully",rows});
-  } catch (err) {
-    res.status(500).json({ message: 'Server error.' });
-  }
-});
+      SELECT
+        id,
+        amount,
+        type,
+        status,
+        date,
+        created_at
+      FROM transactions
+      WHERE investor_id = ? AND status IN ('approved', 'pending')
+      ORDER BY created_at DESC
+    `, [investorId]);
 
-// Asset ownership breakdown (admin)
-router.get('/report/assets', async (req, res) => {
-  try {
-    const [assets] = await pool.query('SELECT * FROM assets');
-    for (const asset of assets) {
-      const [owners] = await pool.query('SELECT ao.investor_id, i.name, ao.percentage FROM asset_ownership ao JOIN investors i ON ao.investor_id = i.id WHERE ao.asset_id = ?', [asset.id]);
-      asset.ownerships = owners;
-    }
-    // Fix: Ensure proper JSON formatting by serializing assets explicitly
-    res.setHeader('Content-Type', 'application/json');
-    res.status(200).json({message:"Assets returned successfully",data:assets,count:assets.length})
-    // res.send(JSON.stringify(assets));
-
-  } catch (err) {
-    res.status(500).json({ message: 'Server error.' });
-  }
-});
-
-// Penalty records (admin)
-router.get('/report/penalties', async (req, res) => {
-  try {
-    const [penalties] = await pool.query('SELECT p.*, i.name as investor_name FROM penalties p JOIN investors i ON p.investor_id = i.id ORDER BY date DESC');
-    res.json(penalties);
-  } catch (err) {
-    res.status(500).json({ message: 'Server error.' });
-  }
-});
-
-// Interest accrual statements (admin)
-router.get('/report/interests', async (req, res) => {
-  try {
-    const [rates] = await pool.query('SELECT * FROM interest_rates ORDER BY start_date DESC');
-    res.json(rates);
-  } catch (err) {
-    res.status(500).json({ message: 'Server error.' });
+    res.json({
+      success: true,
+      message: 'Investor contribution history retrieved successfully',
+      data: rows
+    });
+  } catch (error) {
+    console.error('Error fetching investor history:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch investor contribution history',
+      error: error.message
+    });
   }
 });
 

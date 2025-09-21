@@ -21,10 +21,10 @@ router.patch('/transaction/:id', async (req, res) => {
   if (!['approved', 'rejected'].includes(status)) return res.status(400).json({ message: 'Invalid status.' });
   try {
     await pool.query('UPDATE transactions SET status = ? WHERE id = ?', [status, id]);
-    // After status update, recalculate total_contributions and total_bonds for the investor
+    // After status update, recalculate total_bonds for the investor
     const [[{ investor_id }]] = await pool.query('SELECT investor_id FROM transactions WHERE id = ?', [id]);
     const [[{ total }]] = await pool.query('SELECT SUM(amount) as total FROM transactions WHERE investor_id = ?', [investor_id]);
-    await pool.query('UPDATE investors SET total_contributions = ?, total_bonds = ? WHERE id = ?', [total || 0, total || 0, investor_id]);
+    await pool.query('UPDATE investors SET total_bonds = ? WHERE id = ?', [total || 0, investor_id]);
     res.json({ message: `Transaction ${status}.` });
   } catch (err) {
     res.status(500).json({ message: 'Server error.' });
@@ -137,6 +137,16 @@ router.get('/investor/:id/transactions', async (req, res) => {
   try {
     const [transactions] = await pool.query('SELECT * FROM transactions WHERE investor_id = ? ORDER BY created_at DESC', [id]);
     res.json(transactions);
+  } catch (err) {
+    res.status(500).json({ message: 'Server error.' });
+  }
+});
+
+// Get total contributions for all investors
+router.get('/investor/total_contributions', async (req, res) => {
+  try {
+    const [investors] = await pool.query('SELECT id, name, total_bonds as totalContributions FROM investors');
+    res.json(investors);
   } catch (err) {
     res.status(500).json({ message: 'Server error.' });
   }

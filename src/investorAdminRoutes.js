@@ -6,30 +6,50 @@ const router = express.Router();
 
 // Add a new investor
 router.post('/investor', async (req, res) => {
-  const { name, email, password } = req.body;
+  const { name, email, password, date_of_joining, national_id_number } = req.body;
   try {
     const [existing] = await pool.query('SELECT id FROM investors WHERE email = ?', [email]);
     if (existing.length > 0) return res.status(400).json({ message: 'Email already registered.' });
+
+    // Check if national_id_number already exists
+    if (national_id_number) {
+      const [existingNationalId] = await pool.query('SELECT id FROM investors WHERE national_id_number = ?', [national_id_number]);
+      if (existingNationalId.length > 0) return res.status(400).json({ message: 'National ID number already registered.' });
+    }
+
     const hash = await bcrypt.hash(password, 10);
-    await pool.query('INSERT INTO investors (name, email, password_hash) VALUES (?, ?, ?)', [name, email, hash]);
-    res.status(201).json({ message: 'Investor added.' });
+    await pool.query(
+      'INSERT INTO investors (name, email, password_hash, date_of_joining, national_id_number) VALUES (?, ?, ?, ?, ?)',
+      [name, email, hash, date_of_joining || null, national_id_number || null]
+    );
+    res.status(201).json({ message: 'Investor added successfully.' });
   } catch (err) {
-    res.status(500).json({ message: 'Server error.' });
+    res.status(500).json({ message: 'Server error.', error: err.message });
   }
 });
 
 // Update investor details
 router.put('/investor/:id', async (req, res) => {
   try {
-    const { name, email } = req.body;
+    const { name, email, date_of_joining, national_id_number } = req.body;
     const { id } = req.params;
     if (!name || !email) {
-      return res.status(400).json({ message: "Name, email are required." });
+      return res.status(400).json({ message: "Name and email are required." });
     }
-    await pool.query('UPDATE investors SET name = ?, email = ?  WHERE id = ?', [name, email, id]);
-    res.json({ message: 'Investor updated.' });
+
+    // Check if national_id_number already exists for another investor
+    if (national_id_number) {
+      const [existingNationalId] = await pool.query('SELECT id FROM investors WHERE national_id_number = ? AND id != ?', [national_id_number, id]);
+      if (existingNationalId.length > 0) return res.status(400).json({ message: 'National ID number already registered to another investor.' });
+    }
+
+    await pool.query(
+      'UPDATE investors SET name = ?, email = ?, date_of_joining = ?, national_id_number = ? WHERE id = ?',
+      [name, email, date_of_joining || null, national_id_number || null, id]
+    );
+    res.json({ message: 'Investor updated successfully.' });
   } catch (err) {
-    res.status(500).json({ message: 'Server error.', err });
+    res.status(500).json({ message: 'Server error.', error: err.message });
   }
 });
 
@@ -57,10 +77,24 @@ router.patch('/investor/:id/status', async (req, res) => {
 // Get all investors
 router.get('/investor', async (req, res) => {
   try {
-    const [investors] = await pool.query('SELECT id, name, email, status FROM investors');
+    const [investors] = await pool.query('SELECT id, name, email, status, date_of_joining, national_id_number, created_at FROM investors ORDER BY created_at DESC');
     res.status(200).json({message:"Investors found successfully" ,investors,number:investors.length});
   } catch (err) {
     res.status(500).json({ message: 'Server error.' });
+  }
+});
+
+// Delete investor
+router.delete('/investor/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const [result] = await pool.query('DELETE FROM investors WHERE id = ?', [id]);
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Investor not found.' });
+    }
+    res.json({ message: 'Investor deleted successfully.' });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error.', error: err.message });
   }
 });
 
