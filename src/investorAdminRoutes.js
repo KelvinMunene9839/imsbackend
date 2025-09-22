@@ -31,7 +31,7 @@ router.post('/investor', async (req, res) => {
 // Update investor details
 router.put('/investor/:id', async (req, res) => {
   try {
-    const { name, email, date_of_joining, national_id_number } = req.body;
+    const { name, email, date_of_joining, national_id_number, image } = req.body;
     const { id } = req.params;
     if (!name || !email) {
       return res.status(400).json({ message: "Name and email are required." });
@@ -44,8 +44,8 @@ router.put('/investor/:id', async (req, res) => {
     }
 
     await pool.query(
-      'UPDATE investors SET name = ?, email = ?, date_of_joining = ?, national_id_number = ? WHERE id = ?',
-      [name, email, date_of_joining || null, national_id_number || null, id]
+      'UPDATE investors SET name = ?, email = ?, date_of_joining = ?, national_id_number = ?, image = ? WHERE id = ?',
+      [name, email, date_of_joining || null, national_id_number || null, image || null, id]
     );
     res.json({ message: 'Investor updated successfully.' });
   } catch (err) {
