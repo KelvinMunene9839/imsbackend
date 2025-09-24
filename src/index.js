@@ -14,11 +14,13 @@ import bondRoutes from './bondRoutes.js';
 dotenv.config();
 
 const app = express();
+app.use(express.json());
+app.use(express.json({ extended: true }));
 app.use(cors({
   origin: 'http://localhost:5173', // React frontend URL
   credentials: true
 }));
-app.use(express.json({ extended: true }));
+
 
 // Serve static files from uploads directory
 app.use('/uploads', express.static('uploads'));

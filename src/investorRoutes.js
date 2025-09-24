@@ -116,7 +116,23 @@ router.put('/me/:id', upload.single('image'), async (req, res) => {
   }
 });
 
+router.get("/anounce/latest", async (req, res) => {
+  try {
+    // Order by created_at if you have a timestamp column
+    const [rows] = await pool.query(
+      "SELECT id, title, content, created_at FROM anouncements ORDER BY created_at DESC LIMIT 1"
+    );
 
+    if (rows.length === 0) {
+      return res.status(404).json({ message: "No announcements found." });
+    }
+
+    res.json(rows); // send the latest record only
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error." });
+  }
+});
 
 
 export default router;

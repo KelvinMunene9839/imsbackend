@@ -82,7 +82,7 @@ router.get('/pending-approvals', async (req, res) => {
 router.get('/report/assets', async (req, res) => {
   try {
     const [assets] = await pool.query('SELECT * FROM assets');
-    res.json(assets);
+    res.json({message:"Assets shown successfully",count:assets.length,assets});
   } catch (err) {
     res.status(500).json({ message: 'Server error.' });
   }
@@ -151,5 +151,35 @@ router.get('/investor/total_contributions', async (req, res) => {
     res.status(500).json({ message: 'Server error.' });
   }
 });
+
+
+router.post('/anounce', async (req, res) => {
+  const { title, content } = req.body || {};   // prevent destructure crash
+  console.log(req.body);
+  if (!title || !content) {
+    return res.status(400).json({ message: "Title and content are required." });
+  }
+
+  try {
+    console.log(req.body);
+    if (!title || !content) {
+      return res.status(400).json({ message: "Title and content are required." });
+    }
+
+    await pool.query(
+      'INSERT INTO anouncements (title, content) VALUES (?, ?)',
+      [title, content]
+    );
+    res.status(201).json({
+      message: "Announcement created successfully.",
+      title,
+      content,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error." });
+  }
+});
+
 
 export default router;
