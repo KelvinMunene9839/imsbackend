@@ -7,27 +7,52 @@ import upload from './uploadMiddleware.js';
 const router = express.Router();
 
 // Get investor dashboard (self)
+
 router.get('/me', async (req, res) => {
   const investorId = req.query.id;
-  if (!investorId) return res.status(400).json({ message: 'Investor id required.' });
-  try {
-    const [investorRows] = await pool.query('SELECT id, name, email, total_bonds, status,image FROM investors WHERE id = ?', [investorId]);
-    investorRows[0].image = `${req.protocol}://${req.get('host')}/uploads/${path.basename(investorRows[0].image)}`;
+  if (!investorId) {
+    return res.status(400).json({ message: 'Investor id required.' });
+  }
 
-    if (investorRows.length === 0) return res.status(404).json({ message: 'Investor not found.' });
-    // Get transactions
-    const [transactions] = await pool.query('SELECT * FROM transactions WHERE investor_id = ?', [investorId]);
-    // Calculate percentage share
-    const [[{ totalAll }]] = await pool.query('SELECT SUM(total_bonds) as totalAll FROM investors');
-    let percentage_share = 0;
-    if (totalAll && totalAll > 0) {
-      percentage_share = Number((((investorRows[0].total_bonds || 0) / totalAll) * 100).toFixed(2));
+  try {
+    const [investorRows] = await pool.query(
+      'SELECT id, name, email, total_bonds, status, image FROM investors WHERE id = ?',
+      [investorId]
+    );
+
+    if (investorRows.length === 0) {
+      return res.status(404).json({ message: 'Investor not found.' });
     }
-    res.json({ ...investorRows[0], percentage_share, transactions });
+
+    // Only now is it safe to access [0]
+    const investor = investorRows[0];
+    if (investor.image) {
+      investor.image = `${req.protocol}://${req.get('host')}/uploads/${path.basename(investor.image)}`;
+    }
+
+    // Get transactions
+    const [transactions] = await pool.query(
+      'SELECT * FROM transactions WHERE investor_id = ?',
+      [investorId]
+    );
+
+    // Calculate percentage share
+    const [[{ totalAll }]] = await pool.query(
+      'SELECT SUM(total_bonds) AS totalAll FROM investors'
+    );
+
+    const percentage_share =
+      totalAll && totalAll > 0
+        ? Number((((investor.total_bonds || 0) / totalAll) * 100).toFixed(2))
+        : 0;
+
+    res.json({ ...investor, percentage_share, transactions });
   } catch (err) {
+    console.error(err); // Log the actual error for debugging
     res.status(500).json({ message: 'Server error.' });
   }
 });
+
 
 // Record a new transaction (pending approval) - now as bond contribution
 router.post('/transaction', async (req, res) => {
