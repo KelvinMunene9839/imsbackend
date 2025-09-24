@@ -3,6 +3,16 @@ import pool from './db.js';
 
 const router = express.Router();
 
+// Get all transactions
+router.get('/transactions', async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT t.*, i.name as investor_name FROM transactions t JOIN investors i ON t.investor_id = i.id ORDER BY t.created_at DESC');
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ message: 'Server error.' });
+  }
+});
+
 // Get all pending transactions
 router.get('/transactions/pending', async (req, res) => {
   try {
@@ -19,15 +29,28 @@ router.patch('/transaction/:id', async (req, res) => {
   const { status } = req.body; // 'approved' or 'rejected'
   const { id } = req.params;
   if (!['approved', 'rejected'].includes(status)) return res.status(400).json({ message: 'Invalid status.' });
+
   try {
+    // First check if transaction exists
+    const [existingTransaction] = await pool.query('SELECT * FROM transactions WHERE id = ?', [id]);
+    if (existingTransaction.length === 0) {
+      return res.status(404).json({ message: 'Transaction not found.' });
+    }
+
+    // Update transaction status
     await pool.query('UPDATE transactions SET status = ? WHERE id = ?', [status, id]);
+
     // After status update, recalculate total_bonds for the investor
     const [[{ investor_id }]] = await pool.query('SELECT investor_id FROM transactions WHERE id = ?', [id]);
-    const [[{ total }]] = await pool.query('SELECT SUM(amount) as total FROM transactions WHERE investor_id = ?', [investor_id]);
-    await pool.query('UPDATE investors SET total_bonds = ? WHERE id = ?', [total || 0, investor_id]);
-    res.json({ message: `Transaction ${status}.` });
+    if (investor_id) {
+      const [[{ total }]] = await pool.query('SELECT SUM(amount) as total FROM transactions WHERE investor_id = ? AND status = ?', [investor_id, 'approved']);
+      await pool.query('UPDATE investors SET total_bonds = ? WHERE id = ?', [total || 0, investor_id]);
+    }
+
+    res.json({ message: `Transaction ${status} successfully.` });
   } catch (err) {
-    res.status(500).json({ message: 'Server error.' });
+    console.error('Error updating transaction:', err);
+    res.status(500).json({ message: 'Server error.', error: err.message });
   }
 });
 // Update investor
@@ -152,34 +175,41 @@ router.get('/investor/total_contributions', async (req, res) => {
   }
 });
 
-
-router.post('/anounce', async (req, res) => {
-  const { title, content } = req.body || {};   // prevent destructure crash
-  console.log(req.body);
-  if (!title || !content) {
-    return res.status(400).json({ message: "Title and content are required." });
-  }
-
+// Get ownership summary for all assets
+router.get('/ownership-summary', async (req, res) => {
   try {
-    console.log(req.body);
-    if (!title || !content) {
-      return res.status(400).json({ message: "Title and content are required." });
-    }
+    // Get all assets with their ownership information
+    const [assets] = await pool.query(`
+      SELECT a.id, a.name, a.value,
+             JSON_ARRAYAGG(
+               JSON_OBJECT(
+                 'investor_id', i.id,
+                 'name', i.name,
+                 'amount', COALESCE(SUM(t.amount), 0),
+                 'percentage', CASE
+                   WHEN a.value > 0 THEN (COALESCE(SUM(t.amount), 0) / a.value) * 100
+                   ELSE 0
+                 END
+               )
+             ) as ownerships
+      FROM assets a
+      LEFT JOIN transactions t ON t.asset_id = a.id AND t.status = 'approved'
+      LEFT JOIN investors i ON t.investor_id = i.id
+      GROUP BY a.id, a.name, a.value
+      ORDER BY a.name
+    `);
 
-    await pool.query(
-      'INSERT INTO anouncements (title, content) VALUES (?, ?)',
-      [title, content]
-    );
-    res.status(201).json({
-      message: "Announcement created successfully.",
-      title,
-      content,
-    });
+    // Clean up the ownership data
+    const cleanedAssets = assets.map(asset => ({
+      ...asset,
+      ownerships: asset.ownerships ? asset.ownerships.filter(o => o.name !== null) : []
+    }));
+
+    res.json(cleanedAssets);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error." });
+    console.error('Error fetching ownership summary:', err);
+    res.status(500).json({ message: 'Server error.' });
   }
 });
-
 
 export default router;
