@@ -22,53 +22,55 @@ export async function loginInvestor(req, res) {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        message: 'Email and password are required.' 
+        message: 'Email and password are required.'
       });
     }
 
     const [rows] = await pool.query('SELECT * FROM investors WHERE email = ?', [email]);
 
     if (rows.length === 0) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        message: 'Invalid credentials.' 
+        message: 'Invalid credentials.'
       });
     }
 
     const investor = rows[0];
     const match = await bcrypt.compare(password, investor.password_hash);
-    //generating token
-    const token = jwt.sign(
-      {id:investor.id,username:investor.username,password:investor.password},process.env.JWT_SECRET,{expiresIn:'1h'}
-    );
-    console.log(process.env.JWT_SECRET)
-    res.json({ token,role:"investor",investorId:investor.id });
 
     if (!match) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        message: 'Invalid credentials.' 
+        message: 'Invalid credentials.'
       });
     }
 
+    // Generate token
+    const token = jwt.sign(
+      {id:investor.id,username:investor.name,email:investor.email},process.env.JWT_SECRET,{expiresIn:'1h'}
+    );
+
     // Return consistent response structure
-    res.status(200).json({ 
+    res.status(200).json({
       success: true,
-      data: { 
-        id: investor.id, 
-        name: investor.name, 
-        email: investor.email 
+      token: token,
+      role: "investor",
+      investorId: investor.id,
+      data: {
+        id: investor.id,
+        name: investor.name,
+        email: investor.email
       },
-      message: 'Login successful.' 
+      message: 'Login successful.'
     });
-    
+
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ 
+    console.error('Error in loginInvestor:', err);
+    res.status(500).json({
       success: false,
-      message: 'Server error.' 
+      message: 'Server error.'
     });
   }
 }

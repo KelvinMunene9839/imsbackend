@@ -108,27 +108,7 @@ router.get('/transactions/pending', async (req, res) => {
   }
 });
 
-// Approve or reject transaction
-router.patch('/transaction/:id', async (req, res) => {
-  const { id } = req.params;
-  const { status } = req.body; // 'approved' or 'rejected'
-  if (!['approved', 'rejected'].includes(status)) return res.status(400).json({ message: 'Invalid status.' });
-  try {
-    await pool.query('UPDATE transactions SET status = ? WHERE id = ?', [status, id]);
-    if (status === 'approved') {
-      // Update total_bonds
-      const [trans] = await pool.query('SELECT investor_id, amount FROM transactions WHERE id = ?', [id]);
-      if (trans.length > 0) {
-        const { investor_id, amount } = trans[0];
-        const [[{ total }]] = await pool.query('SELECT SUM(amount) as total FROM transactions WHERE investor_id = ? AND status = ?', [investor_id, 'approved']);
-        await pool.query('UPDATE investors SET total_bonds = ? WHERE id = ?', [total || 0, investor_id]);
-      }
-    }
-    res.json({ message: `Transaction ${status}.` });
-  } catch (err) {
-    res.status(500).json({ message: 'Server error.' });
-  }
-});
+
 
 // Get transactions for a specific investor
 router.get('/investor/:id/transactions', async (req, res) => {
