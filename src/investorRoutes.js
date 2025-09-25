@@ -145,7 +145,7 @@ router.get("/anounce/latest", async (req, res) => {
   try {
     // Order by created_at if you have a timestamp column
     const [rows] = await pool.query(
-      "SELECT id, title, content, created_at FROM anouncements ORDER BY created_at DESC LIMIT 1"
+      "SELECT id, title, content, created_at FROM anouncements ORDER BY created_at DESC"
     );
 
     if (rows.length === 0) {
@@ -159,5 +159,32 @@ router.get("/anounce/latest", async (req, res) => {
   }
 });
 
+
+router.post('/upload/file', upload.array('documents', 10), async (req, res) => {
+  try {
+    const { owner_id } = req.body;
+    if (!owner_id) return res.status(400).json({ message: 'owner_id required' });
+    if (!req.files?.length) return res.status(400).json({ message: 'No files uploaded' });
+
+    const inserts = req.files.map((f) => [
+      owner_id,
+      f.originalname,
+      f.path,
+      f.mimetype,
+    ]);
+    await pool.query(
+      'INSERT INTO asset_documents (owner_id, file_name, file_path, mime_type) VALUES ?',
+      [inserts]
+    );
+
+    res.json({
+      message: 'Files uploaded successfully',
+      files: req.files.map((f) => ({ name: f.originalname, url: `/uploads/${f.filename}` })),
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Upload failed' });
+  }
+});
 
 export default router;

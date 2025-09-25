@@ -10,6 +10,7 @@ import interestPenaltyRoutes from './interestPenaltyRoutes.js';
 import reportRoutes from './reportRoutes.js';
 import jwt from 'jsonwebtoken'
 import bondRoutes from './bondRoutes.js';
+import multer from 'multer';
 
 dotenv.config();
 
@@ -24,7 +25,20 @@ app.use(cors({
 
 // Serve static files from uploads directory
 app.use('/uploads', express.static('uploads'));
-
+const storage = multer.diskStorage({
+  destination: 'uploads/documents/',
+  filename: (_, file, cb) =>
+    cb(null, Date.now() + '-' + Math.round(Math.random() * 1e9) + '-' + file.originalname),
+});
+const allowed = ['application/pdf', 'image/jpeg', 'image/png', 'image/tiff'];
+const upload = multer({
+  storage,
+  fileFilter: (_, file, cb) =>
+    allowed.includes(file.mimetype)
+      ? cb(null, true)
+      : cb(new Error('Only PDF, JPG, PNG, TIFF allowed')),
+  limits: { fileSize: 10 * 1024 * 1024 },
+});
 app.get('/', (req, res) => {
   res.send('Investor Management System API is running. ');
 });
