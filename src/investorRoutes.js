@@ -179,7 +179,7 @@ router.post('/upload/file', upload.array('documents', 10), async (req, res) => {
 
     res.json({
       message: 'Files uploaded successfully',
-      files: req.files.map((f) => ({ name: f.originalname, url: `/uploads/${f.filename}` })),
+      files: req.files.map((f) => ({ name: f.originalname, url: `/uploads/documents/${f.filename}` })),
     });
   } catch (err) {
     console.error(err);

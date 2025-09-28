@@ -82,7 +82,7 @@ router.get('/assets', async (req, res) => {
     }
     res.json(assets);
   } catch (err) {
-    res.status(500).json({ message: 'Server error.' });
+    res.status(500).json({ message: 'Server error.',err });
   }
 });
 

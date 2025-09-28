@@ -8,7 +8,6 @@ import assetRoutes from './assetRoutes.js';
 import investorAdminRoutes from './investorAdminRoutes.js';
 import interestPenaltyRoutes from './interestPenaltyRoutes.js';
 import reportRoutes from './reportRoutes.js';
-import jwt from 'jsonwebtoken'
 import bondRoutes from './bondRoutes.js';
 import multer from 'multer';
 
