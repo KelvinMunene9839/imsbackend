@@ -22,12 +22,18 @@ const upload = multer({ storage: storage });
 router.post('/asset', upload.single('document'), async (req, res) => {
   const { name, value, contributions } = req.body;
   const document = req.file ? req.file.path : null;
-  if (!name || !value || !Array.isArray(contributions) || contributions.length === 0) {
+  let parsedContributions;
+  try {
+    parsedContributions = JSON.parse(contributions);
+  } catch (err) {
+    return res.status(400).json({ message: 'Invalid contributions format.' });
+  }
+  if (!name || !value || !Array.isArray(parsedContributions) || parsedContributions.length === 0) {
     return res.status(400).json({ message: 'Missing required fields.' });
   }
 
   // Calculate total contribution
-  const total = contributions.reduce((sum, c) => sum + Number(c.amount), 0);
+  const total = parsedContributions.reduce((sum, c) => sum + Number(c.amount), 0);
   if (total <= 0) {
     return res.status(400).json({ message: 'Total contribution must be greater than zero.' });
   }
@@ -41,7 +47,7 @@ router.post('/asset', upload.single('document'), async (req, res) => {
     const assetId = result.insertId;
 
     // Insert ownerships based on contributions
-    for (const c of contributions) {
+    for (const c of parsedContributions) {
       const percent = ((Number(c.amount) / total) * 100).toFixed(2);
       await pool.query(
         'INSERT INTO asset_ownership (asset_id, investor_id, percentage) VALUES (?, ?, ?)',
@@ -50,7 +56,7 @@ router.post('/asset', upload.single('document'), async (req, res) => {
     }
 
     // Deduct the asset value from total_bonds of each investor proportionally
-    for (const c of contributions) {
+    for (const c of parsedContributions) {
       const deduction = (Number(c.amount) / total) * Number(value);
       await pool.query('UPDATE investors SET total_bonds = total_bonds - ? WHERE id = ?', [deduction, c.investorId]);
     }
