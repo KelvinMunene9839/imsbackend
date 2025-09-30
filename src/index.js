@@ -23,19 +23,19 @@ app.use(cors({
 
 
 // Serve static files from uploads directory
-app.use('/uploads', express.static('uploads'));
+app.use('/uploads', express.static('uploads/documents'));
 const storage = multer.diskStorage({
-  destination: 'uploads/documents/',
+  destination: './uploads/documents',
   filename: (_, file, cb) =>
     cb(null, Date.now() + '-' + Math.round(Math.random() * 1e9) + '-' + file.originalname),
 });
-const allowed = ['application/pdf', 'image/jpeg', 'image/png', 'image/tiff'];
+const allowed = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
 const upload = multer({
   storage,
   fileFilter: (_, file, cb) =>
     allowed.includes(file.mimetype)
       ? cb(null, true)
-      : cb(new Error('Only PDF, JPG, PNG, TIFF allowed')),
+      : cb(new Error('Only PDF, JPG, PNG, JPEG allowed')),
   limits: { fileSize: 10 * 1024 * 1024 },
 });
 app.get('/', (req, res) => {

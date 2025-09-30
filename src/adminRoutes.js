@@ -178,34 +178,37 @@ router.get('/investor/total_contributions', async (req, res) => {
 // Get ownership summary for all assets
 router.get('/ownership-summary', async (req, res) => {
   try {
-    // Get all assets with their ownership information
-    const [assets] = await pool.query(`
-      SELECT a.id, a.name, a.value,
-             JSON_ARRAYAGG(
-               JSON_OBJECT(
-                 'investor_id', i.id,
-                 'name', i.name,
-                 'amount', COALESCE(SUM(t.amount), 0),
-                 'percentage', CASE
-                   WHEN a.value > 0 THEN (COALESCE(SUM(t.amount), 0) / a.value) * 100
-                   ELSE 0
-                 END
-               )
-             ) as ownerships
+    // Get assets first
+    const [assets] = await pool.query('SELECT id, name, value FROM assets ORDER BY name');
+    
+    // Get ownership data separately
+    const [ownershipData] = await pool.query(`
+      SELECT 
+        a.id as asset_id,
+        i.id as investor_id,
+        i.name,
+        SUM(t.amount) as amount,
+        (SUM(t.amount) / a.value) * 100 as percentage
       FROM assets a
-      LEFT JOIN transactions t ON t.asset_id = a.id AND t.status = 'approved'
-      LEFT JOIN investors i ON t.investor_id = i.id
-      GROUP BY a.id, a.name, a.value
-      ORDER BY a.name
+      JOIN transactions t ON t.asset_id = a.id AND t.status = 'approved'
+      JOIN investors i ON t.investor_id = i.id
+      WHERE a.value > 0
+      GROUP BY a.id, i.id, i.name, a.value
     `);
 
-    // Clean up the ownership data
-    const cleanedAssets = assets.map(asset => ({
-      ...asset,
-      ownerships: asset.ownerships ? asset.ownerships.filter(o => o.name !== null) : []
-    }));
+    // Combine the data
+    const assetsWithOwnership = assets.map(asset => {
+      const ownerships = ownershipData
+        .filter(o => o.asset_id === asset.id)
+        .map(({ asset_id, ...rest }) => rest);
+      
+      return {
+        ...asset,
+        ownerships
+      };
+    });
 
-    res.json(cleanedAssets);
+    res.json(assetsWithOwnership);
   } catch (err) {
     console.error('Error fetching ownership summary:', err);
     res.status(500).json({ message: 'Server error.' });

@@ -162,29 +162,48 @@ router.get("/anounce/latest", async (req, res) => {
 
 router.post('/upload/file', upload.array('documents', 10), async (req, res) => {
   try {
-    const { owner_id } = req.body;
-    if (!owner_id) return res.status(400).json({ message: 'owner_id required' });
-    if (!req.files?.length) return res.status(400).json({ message: 'No files uploaded' });
+    const { asset_id } = req.body;
+    if (!asset_id) 
+      return res.status(400).json({ message: 'asset_id is required' });
+
+    if (!req.files?.length) 
+      return res.status(400).json({ message: 'No files uploaded' });
+
+    // Validate file types
+    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+    for (const file of req.files) {
+      if (!allowedTypes.includes(file.mimetype)) {
+        return res.status(400).json({ 
+          message: `Invalid file type: ${file.originalname}. Only PDF, JPG, JPEG, PNG allowed.` 
+        });
+      }
+    }
 
     const inserts = req.files.map((f) => [
-      owner_id,
+      asset_id,
       f.originalname,
       f.path,
       f.mimetype,
+      new Date()
     ]);
+
     await pool.query(
-      'INSERT INTO asset_documents (owner_id, file_name, file_path, mime_type) VALUES ?',
+      'INSERT INTO asset_documents (asset_id, file_name, file_path, mime_type, uploaded_at) VALUES ?',
       [inserts]
     );
 
     res.json({
       message: 'Files uploaded successfully',
-      files: req.files.map((f) => ({ name: f.originalname, url: `/uploads/documents/${f.filename}` })),
+      files: req.files.map((f) => ({ 
+        name: f.originalname, 
+        url: `/uploads/documents/${f.filename}` 
+      })),
     });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Upload failed' });
   }
 });
+
 
 export default router;
