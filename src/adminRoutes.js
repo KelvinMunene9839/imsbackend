@@ -6,7 +6,7 @@ const router = express.Router();
 // Get all transactions
 router.get('/transactions', async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT t.id,t.investor_id,i.name,t.amount,t.date,t.status,t.created_at,t.type FROM transactions AS t JOIN investors AS i ON t.investor_id = i.id ORDER BY t.created_at DESC');
+    const [rows] = await pool.query("SELECT t.id, t.investor_id, i.name AS investor_name, t.amount, t.date, t.status, t.created_at, t.type, a.name AS asset_name FROM transactions AS t JOIN investors AS i ON t.investor_id = i.id LEFT JOIN assets AS a ON t.asset_id = a.id ORDER BY t.created_at DESC");
     res.json(rows);
   } catch (err) {
     res.status(500).json({ message: 'Server error.' });
@@ -55,8 +55,11 @@ router.patch('/transaction/:id', async (req, res) => {
 });
 // Update investor
 router.patch('/investor/:id', async (req, res) => {
-  const { id } = req.params;
+  const { id } = req.params.id;
   const { name, email, password, status } = req.body;
+  if(!name || !email || !status){ 
+    return res.status(400).json({ message: 'No data provided for update.' });
+  }
   try {
     // Update name/email/status
     await pool.query('UPDATE investors SET name = ?, email = ?, status = ? WHERE id = ?', [name, email, status || 'active', id]);
@@ -66,13 +69,13 @@ router.patch('/investor/:id', async (req, res) => {
     }
     res.json({ message: 'Investor updated.' });
   } catch (err) {
-    res.status(500).json({ message: 'Server error.' });
+    res.status(500).json({ message: 'Server error.',err });
   }
 });
 
 // Delete investor
 router.delete('/investor/:id', async (req, res) => {
-  const { id } = req.params;
+  const { id } = req.params.id;
   try {
     await pool.query('DELETE FROM investors WHERE id = ?', [id]);
     res.json({ message: 'Investor deleted.' });
@@ -144,7 +147,7 @@ router.get('/report/interests', async (req, res) => {
 // Get monthly contributions report
 router.get('/report/contributions/monthly', async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT MONTH(created_at) as month, YEAR(created_at) as year, SUM(amount) as total FROM transactions WHERE status = ? GROUP BY YEAR(created_at), MONTH(created_at)', ['approved']);
+    const [rows] = await pool.query('SELECT MONTH(created_at) as month, YEAR(created_at) as year, SUM(amount) as total , SUM(amount)/count(id) as average FROM transactions WHERE status = ? GROUP BY YEAR(created_at), MONTH(created_at)', ['approved']);
     res.json(rows);
   } catch (err) {
     res.status(500).json({ message: 'Server error.' });
@@ -215,6 +218,7 @@ router.get('/ownership-summary', async (req, res) => {
   }
 });
 
+
 router.post('/anounce', async (req, res) => {
     const { title, content } = req.body || {};
     if (!title || !content || title.trim() === "" || content.trim() === "") {
@@ -228,4 +232,50 @@ router.post('/anounce', async (req, res) => {
         res.status(500).json({ message: "Server error." });
     }
 });
+
+
+// routes/adminRoutes.js
+
+router.get('/search', async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q || q.trim() === '') {
+      return res.json({ assets: [], investors: [], transactions: [] });
+    }
+
+    const query = `%${q}%`;
+
+    const [assets] = await pool.query(
+      `SELECT id, name, value FROM assets WHERE name LIKE ? OR id LIKE ?`,
+      [query, query]
+    );
+
+    const [investors] = await pool.query(
+      `SELECT id, name, email FROM investors WHERE name LIKE ? OR email LIKE ?`,
+      [query, query]
+    );
+
+    const [transactions] = await pool.query(
+      `SELECT 
+         t.id,
+         t.amount,
+         t.status,
+         t.type,
+         t.date,
+         i.name AS investor_name,
+         a.name AS asset_name
+       FROM transactions t
+       JOIN investors i ON t.investor_id = i.id
+       LEFT JOIN assets a ON t.asset_id = a.id
+       WHERE i.name LIKE ? OR a.name LIKE ? OR t.type LIKE ?`,
+      [query, query, query]
+    );
+
+    res.json({ assets, investors, transactions });
+  } catch (err) {
+    console.error('Error running search:', err);
+    res.status(500).json({ message: 'Server error.' });
+  }
+});
+
 export default router;

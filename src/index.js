@@ -14,16 +14,19 @@ import multer from 'multer';
 dotenv.config();
 
 const app = express();
-app.use(express.json());
-app.use(express.json({ extended: true }));
+
+// ✅ Fix: add urlencoded parser
+app.use(express.json()); 
+app.use(express.urlencoded({ extended: true })); 
+
 app.use(cors({
-  origin: 'http://localhost:5173', // React frontend URL
+  origin: 'http://localhost:5173',
   credentials: true
 }));
 
-
 // Serve static files from uploads directory
 app.use('/uploads', express.static('uploads/documents'));
+
 const storage = multer.diskStorage({
   destination: './uploads/documents',
   filename: (_, file, cb) =>
@@ -38,10 +41,10 @@ const upload = multer({
       : cb(new Error('Only PDF, JPG, PNG, JPEG allowed')),
   limits: { fileSize: 10 * 1024 * 1024 },
 });
-app.get('/', (req, res) => {
-  res.send('Investor Management System API is running. ');
-});
 
+app.get('/', (req, res) => {
+  res.send('Investor Management System API is running.');
+});
 
 app.use('/api/auth', authRoutes);
 app.use('/api/investor', investorRoutes);

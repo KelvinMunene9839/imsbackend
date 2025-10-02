@@ -147,7 +147,6 @@ router.get('/investor/assets', async (req, res) => {
     res.status(500).json({ message: 'Server error.' });
   }
 });
-
 // Get total asset value
 router.get('/total-asset-value', async (req, res) => {
   try {

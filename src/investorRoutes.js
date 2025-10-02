@@ -77,6 +77,25 @@ router.post('/transaction', async (req, res) => {
 });
 
 
+router.get('/api/investor/transactions', async (req, res) => {
+  const { investorId, q } = req.query;
+  if (!investorId) return res.status(400).json({ message: 'Investor ID required' });
+
+  try {
+    const query = `
+      SELECT * FROM transactions 
+      WHERE investor_id = ? AND 
+      (CAST(amount AS CHAR) LIKE ? OR date LIKE ? OR status LIKE ?)
+      ORDER BY date DESC
+    `;
+    const [rows] = await db.execute(query, [investorId, `%${q}%`, `%${q}%`, `%${q}%`]);
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // Update investor profile (including image)
 // Make sure your frontend sends the file with the field name 'image' (e.g., formData.append('image', file))
 // PUT /api/investor/me/:id
@@ -204,6 +223,57 @@ router.post('/upload/file', upload.array('documents', 10), async (req, res) => {
     res.status(500).json({ error: 'Upload failed' });
   }
 });
+
+
+router.get("/search", async (req, res) => {
+  const { q } = req.query;
+
+  if (!q || !q.trim()) return res.json([]);
+
+  const searchQuery = `%${q}%`;
+
+  try {
+    // Search investors safely
+    let investors = [];
+    try {
+      [investors] = await pool.query(
+        "SELECT id, name, 'Investor' AS type FROM investors WHERE name LIKE ? LIMIT 5",
+        [searchQuery]
+      );
+    } catch (err) {
+      console.warn("Investors search failed:", err.message);
+    }
+
+    // Search assets safely
+    let assets = [];
+    try {
+      [assets] = await pool.query(
+        "SELECT id, name, 'Asset' AS type FROM assets WHERE name LIKE ? LIMIT 5",
+        [searchQuery]
+      );
+    } catch (err) {
+      console.warn("Assets search failed:", err.message);
+    }
+
+    // Search transactions safely
+    let transactions = [];
+    try {
+      [transactions] = await pool.query(
+        "SELECT id, CONCAT('Transaction #', id) AS name, 'Transaction' AS type FROM transactions WHERE status LIKE ? LIMIT 5",
+        [searchQuery]
+      );
+    } catch (err) {
+      console.warn("Transactions search failed:", err.message);
+    }
+
+    res.json([...investors, ...assets, ...transactions]);
+  } catch (err) {
+    console.error("Search backend error:", err);
+    res.status(500).json({ message: "Search failed" });
+  }
+});
+
+
 
 
 export default router;
