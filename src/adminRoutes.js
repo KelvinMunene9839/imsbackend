@@ -1,6 +1,6 @@
 import express from 'express';
 import pool from './db.js';
-
+import bcrypt from 'bcrypt';
 const router = express.Router();
 
 // Get all transactions
@@ -53,37 +53,130 @@ router.patch('/transaction/:id', async (req, res) => {
     res.status(500).json({ message: 'Server error.', error: err.message });
   }
 });
+
+//Approve transaction
+// Update transaction status (approve/reject)
+router.patch('/transactions/:id', async (req, res) => {
+  try {
+    const transactionId = req.params.id;
+    const { status } = req.body;
+
+    console.log(`🔄 Updating transaction ${transactionId} to status: ${status}`);
+
+    // Validate status
+    if (!status || !['pending', 'approved', 'rejected'].includes(status)) {
+      return res.status(400).json({ message: 'Invalid status. Must be: pending, approved, or rejected.' });
+    }
+
+    // Update only the status field
+    const [result] = await pool.query(
+      'UPDATE transactions SET status = ? WHERE id = ?',
+      [status, transactionId]
+    );
+
+    console.log('✅ Update result:', result);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Transaction not found.' });
+    }
+
+    res.json({ 
+      message: `Transaction ${status} successfully.`,
+      affectedRows: result.affectedRows 
+    });
+
+  } catch (err) {
+    console.error('❌ Update error:', err);
+    res.status(500).json({ 
+      message: 'Failed to update transaction',
+      error: err.message,
+      code: err.code 
+    });
+  }
+});
 // Update investor
 router.patch('/investor/:id', async (req, res) => {
-  const { id } = req.params.id;
-  const { name, email, password, status } = req.body;
-  if(!name || !email || !status){ 
-    return res.status(400).json({ message: 'No data provided for update.' });
-  }
   try {
-    // Update name/email/status
-    await pool.query('UPDATE investors SET name = ?, email = ?, status = ? WHERE id = ?', [name, email, status || 'active', id]);
-    // Optionally update password if provided
-    if (password) {
-      await pool.query('UPDATE investors SET password = ? WHERE id = ?', [password, id]);
+    const investorId = req.params.id;
+    const { name, email, password, status, date_of_joining, national_id_number } = req.body;
+    
+    console.log('🔄 Updating investor ID:', investorId);
+    console.log('📦 Received data:', { ...req.body, password: password ? '[HIDDEN]' : undefined });
+
+    // Validation
+    if (!name || !email) {
+      return res.status(400).json({ message: 'Name and email are required.' });
     }
-    res.json({ message: 'Investor updated.' });
+
+    // Convert date format from ISO to YYYY-MM-DD
+    let formattedDate = null;
+    if (date_of_joining) {
+      const date = new Date(date_of_joining);
+      if (!isNaN(date.getTime())) {
+        formattedDate = date.toISOString().split('T')[0]; // Get YYYY-MM-DD part
+        console.log('📅 Formatted date:', formattedDate);
+      }
+    }
+
+    // Build update query dynamically
+    let updateFields = [];
+    let queryParams = [];
+
+    updateFields.push('name = ?', 'email = ?', 'status = ?');
+    queryParams.push(name, email, status || 'active');
+
+    if (formattedDate) {
+      updateFields.push('date_of_joining = ?');
+      queryParams.push(formattedDate);
+    } else if (date_of_joining === null || date_of_joining === '') {
+      updateFields.push('date_of_joining = NULL');
+    }
+
+    if (national_id_number) {
+      updateFields.push('national_id_number = ?');
+      queryParams.push(national_id_number);
+    }
+
+    // Update password if provided
+    if (password) {
+      console.log('🔑 Hashing and updating password');
+      const hash = await bcrypt.hash(password, 10);
+      updateFields.push('password_hash = ?');
+      queryParams.push(hash);
+    }
+
+    queryParams.push(investorId);
+
+    const updateQuery = `UPDATE investors SET ${updateFields.join(', ')} WHERE id = ?`;
+    
+    console.log('📝 Executing query:', updateQuery);
+    console.log('🔢 Query parameters:', queryParams.map(param => 
+      param === queryParams[queryParams.length - (password ? 2 : 1)] ? '[HASHED_PASSWORD]' : param
+    ));
+
+    // Execute single update query
+    const [result] = await pool.query(updateQuery, queryParams);
+    
+    console.log('✅ Update result:', result);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Investor not found.' });
+    }
+
+    res.json({ 
+      message: 'Investor updated successfully.',
+      affectedRows: result.affectedRows 
+    });
+
   } catch (err) {
-    res.status(500).json({ message: 'Server error.',err });
+    console.error('❌ Update error:', err);
+    res.status(500).json({ 
+      message: 'Failed to update investor',
+      error: err.message,
+      code: err.code 
+    });
   }
 });
-
-// Delete investor
-router.delete('/investor/:id', async (req, res) => {
-  const { id } = req.params.id;
-  try {
-    await pool.query('DELETE FROM investors WHERE id = ?', [id]);
-    res.json({ message: 'Investor deleted.' });
-  } catch (err) {
-    res.status(500).json({ message: 'Server error.' });
-  }
-});
-
 // Get all investors
 router.get('/investors', async (req, res) => {
   try {

@@ -31,6 +31,43 @@ router.get('/bonds', async (req, res) => {
   }
 });
 
+router.post('/bonds/interest', async (req, res) => {
+  try {
+    const { bond_id, amount, type, date } = req.body;
+    
+    // Create interest transaction
+    const [result] = await pool.query(
+      'INSERT INTO transactions (investor_id, bond_id, amount, type, date, status) VALUES (?, ?, ?, ?, ?, ?)',
+      [bond.investor_id, bond_id, amount, type, date, 'pending']
+    );
+    
+    res.json({ message: 'Interest added successfully', transactionId: result.insertId });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to add interest', error: error.message });
+  }
+});
+
+
+router.post('/bonds/general-interest', async (req, res) => {
+  try {
+    const { amount, type, date } = req.body;
+    
+    // Get all active bonds
+    const [bonds] = await pool.query('SELECT * FROM bonds WHERE status = "active"');
+    
+    // Create interest transactions for each bond
+    for (const bond of bonds) {
+      await pool.query(
+        'INSERT INTO transactions (investor_id, bond_id, amount, type, date, status) VALUES (?, ?, ?, ?, ?, ?)',
+        [bond.investor_id, bond.id, amount, type, date, 'pending']
+      );
+    }
+    
+    res.json({ message: 'General interest added to all bonds successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to add general interest', error: error.message });
+  }
+});
 // Add global interest to all bonds
 router.post('/interest/global', async (req, res) => {
   const { interest_amount, date } = req.body;
