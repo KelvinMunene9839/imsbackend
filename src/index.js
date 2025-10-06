@@ -10,6 +10,7 @@ import interestPenaltyRoutes from './interestPenaltyRoutes.js';
 import reportRoutes from './reportRoutes.js';
 import jwt from 'jsonwebtoken'
 import bondRoutes from './bondRoutes.js';
+import { testConnection } from './db.js';
 
 dotenv.config();
 
@@ -38,6 +39,7 @@ app.use('/api/admin', reportRoutes);
 app.use('/api/admin', bondRoutes);
 
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, '0.0.0.0', async () => {
   console.log(`Server running on port ${PORT}`);
+  await testConnection();
 });

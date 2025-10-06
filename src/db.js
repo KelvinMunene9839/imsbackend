@@ -15,4 +15,17 @@ const pool = mysql.createPool({
 if(pool) console.log('connected');
 else console.log('failed to connect');
 
+export async function testConnection() {
+  let connection;
+  try {
+    connection = await pool.getConnection();
+    await connection.execute('SELECT 1');
+    console.log('Database connection test successful');
+  } catch (error) {
+    console.error('Database connection test failed:', error.message);
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
 export default pool;
