@@ -1,13 +1,38 @@
-
 import express from 'express';
 import pool from './db.js';
-import upload from './uploadMiddleware.js';
-// import path from 'path';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 const router = express.Router();
 
-// Get investor dashboard (self)
+// UPDATED: Multer configuration for profiles folder
+const storage = multer.diskStorage({
+  destination: './uploads/profiles', // UPDATED: Save to profiles folder
+  filename: (_, file, cb) => {
+    const originalName = file.originalname.replace(/\s+/g, '-'); // Replace spaces with hyphens
+    cb(null, Date.now() + '-' + Math.round(Math.random() * 1e9) + '-' + originalName);
+  },
+});
 
+const allowed = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+const upload = multer({
+  storage,
+  fileFilter: (_, file, cb) => {
+    if (allowed.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only PDF, JPG, PNG, JPEG allowed'));
+    }
+  },
+  limits: { fileSize: 10 * 1024 * 1024 },
+});
+
+// Get investor dashboard (self)
 router.get('/me', async (req, res) => {
   const investorId = req.query.id;
   if (!investorId) {
@@ -24,10 +49,21 @@ router.get('/me', async (req, res) => {
       return res.status(404).json({ message: 'Investor not found.' });
     }
 
-    // Only now is it safe to access [0]
     const investor = investorRows[0];
+    
+    console.log('=== PROFILE IMAGE DEBUG ===');
+    console.log('Raw image from database:', investor.image);
+    console.log('Request protocol:', req.protocol);
+    console.log('Request host:', req.get('host'));
+    
+    // ✅ FIX: Properly construct image URL with profiles folder
     if (investor.image) {
-      investor.image = `${req.protocol}://${req.get('host')}/uploads/${path.basename(investor.image)}`;
+      // Remove any leading slashes or uploads/ prefix to avoid double pathing
+      const cleanImagePath = investor.image.replace(/^\/?uploads\//, '');
+      investor.image = `${req.protocol}://${req.get('host')}/uploads/profiles/${cleanImagePath}`;
+      console.log('Final image URL:', investor.image);
+    } else {
+      console.log('No image found in database');
     }
 
     // Get transactions
@@ -46,13 +82,12 @@ router.get('/me', async (req, res) => {
         ? Number((((investor.total_bonds || 0) / totalAll) * 100).toFixed(2))
         : 0;
 
-    res.json({ ...investor, percentage_share, transactions });
+    res.json({ ...investor, percentage_share, transactions, image:investor.image });
   } catch (err) {
-    console.error(err); // Log the actual error for debugging
-    res.status(500).json({ message: 'Server error.' });
+    console.error(err);
+    res.status(500).json({ message: 'Server error.',err });
   }
 });
-
 
 // Record a new transaction (pending approval) - now as bond contribution
 router.post('/transaction', async (req, res) => {
@@ -76,8 +111,7 @@ router.post('/transaction', async (req, res) => {
   }
 });
 
-
-router.get('/api/investor/transactions', async (req, res) => {
+router.get('/transactions', async (req, res) => {
   const { investorId, q } = req.query;
   if (!investorId) return res.status(400).json({ message: 'Investor ID required' });
 
@@ -88,7 +122,7 @@ router.get('/api/investor/transactions', async (req, res) => {
       (CAST(amount AS CHAR) LIKE ? OR date LIKE ? OR status LIKE ?)
       ORDER BY date DESC
     `;
-    const [rows] = await db.execute(query, [investorId, `%${q}%`, `%${q}%`, `%${q}%`]);
+    const [rows] = await pool.execute(query, [investorId, `%${q}%`, `%${q}%`, `%${q}%`]);
     res.json(rows);
   } catch (err) {
     console.error(err);
@@ -97,10 +131,6 @@ router.get('/api/investor/transactions', async (req, res) => {
 });
 
 // Update investor profile (including image)
-// Make sure your frontend sends the file with the field name 'image' (e.g., formData.append('image', file))
-// PUT /api/investor/me/:id
-import path from 'path';
-
 router.put('/me/:id', upload.single('image'), async (req, res) => {
   const investorId = req.params.id;
   if (!investorId) {
@@ -108,10 +138,9 @@ router.put('/me/:id', upload.single('image'), async (req, res) => {
   }
 
   const { name, status } = req.body;
-  let image;
-
+  
   try {
-    // check current image
+    // Check if investor exists
     const [currentRows] = await pool.query(
       'SELECT image FROM investors WHERE id = ?',
       [investorId]
@@ -119,21 +148,41 @@ router.put('/me/:id', upload.single('image'), async (req, res) => {
     if (currentRows.length === 0) {
       return res.status(404).json({ message: 'Investor not found.' });
     }
-    const currentImage = currentRows[0].image;
 
-    // set image path
+    const currentImage = currentRows[0].image;
+    let imagePath = currentImage;
+
+    // Handle new image upload
     if (req.file) {
-      image = `/uploads/${req.file.filename}`;
-    } else if (currentImage) {
-      image = currentImage;
+      imagePath = req.file.filename;
+      
+      // Delete old image if it exists and is different from new one
+      if (currentImage && currentImage !== imagePath) {
+        // UPDATED: Look in profiles folder
+        const oldImagePath = path.join(process.cwd(), 'uploads/profiles', currentImage);
+        if (fs.existsSync(oldImagePath)) {
+          fs.unlinkSync(oldImagePath);
+          console.log(`Deleted old profile image: ${oldImagePath}`);
+        }
+      }
     }
 
-    // collect fields
+    // Build update query
     const fields = [];
     const values = [];
-    if (name) { fields.push('name = ?'); values.push(name); }
-    if (status) { fields.push('status = ?'); values.push(status); }
-    if (image) { fields.push('image = ?'); values.push(image); }
+    
+    if (name) { 
+      fields.push('name = ?'); 
+      values.push(name); 
+    }
+    if (status) { 
+      fields.push('status = ?'); 
+      values.push(status); 
+    }
+    if (req.file) { 
+      fields.push('image = ?'); 
+      values.push(imagePath); 
+    }
 
     if (fields.length === 0) {
       return res.status(400).json({ message: 'No fields to update.' });
@@ -142,27 +191,38 @@ router.put('/me/:id', upload.single('image'), async (req, res) => {
     values.push(investorId);
     const sql = `UPDATE investors SET ${fields.join(', ')} WHERE id = ?`;
     const [result] = await pool.query(sql, values);
+    
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: 'Investor not found.' });
     }
 
-    // return updated row with absolute image URL
-    const [rows] = await pool.query('SELECT id,name,email,total_bonds,status,image FROM investors WHERE id = ?', [investorId]);
-    const updated = rows[0];
-    if (updated.image) {
-      updated.image = `${req.protocol}://${req.get('host')}/uploads/${path.basename(updated.image)}`;
+    // Return updated investor data with proper image URL
+    const [rows] = await pool.query(
+      'SELECT id, name, email, total_bonds, status, image FROM investors WHERE id = ?', 
+      [investorId]
+    );
+    
+    const updatedInvestor = rows[0];
+    
+    // ✅ FIX: Construct proper image URL for response with profiles folder
+    if (updatedInvestor.image) {
+        const cleanImagePath = updatedInvestor.image.replace(/^\/?uploads\//, '');
+        updatedInvestor.image = `${req.protocol}://${req.get('host')}/uploads/profiles/${cleanImagePath}`;
+        console.log('Updated profile image URL:', updatedInvestor.image);
     }
 
-    res.json(updated);
+    res.json(updatedInvestor);
   } catch (err) {
-    console.error(err);
+    console.error('Profile update error:', err);
     res.status(500).json({ message: 'Server error.' });
   }
 });
 
+// REMOVED: All document-related routes since they're now in document.js
+// Only keeping investor-specific routes
+
 router.get("/anounce/latest", async (req, res) => {
   try {
-    // Order by created_at if you have a timestamp column
     const [rows] = await pool.query(
       "SELECT id, title, content, created_at FROM anouncements ORDER BY created_at DESC"
     );
@@ -171,59 +231,12 @@ router.get("/anounce/latest", async (req, res) => {
       return res.status(404).json({ message: "No announcements found." });
     }
 
-    res.json(rows); // send the latest record only
+    res.json(rows);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error." });
   }
 });
-
-
-router.post('/upload/file', upload.array('documents', 10), async (req, res) => {
-  try {
-    const { asset_id } = req.body;
-    if (!asset_id) 
-      return res.status(400).json({ message: 'asset_id is required' });
-
-    if (!req.files?.length) 
-      return res.status(400).json({ message: 'No files uploaded' });
-
-    // Validate file types
-    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
-    for (const file of req.files) {
-      if (!allowedTypes.includes(file.mimetype)) {
-        return res.status(400).json({ 
-          message: `Invalid file type: ${file.originalname}. Only PDF, JPG, JPEG, PNG allowed.` 
-        });
-      }
-    }
-
-    const inserts = req.files.map((f) => [
-      asset_id,
-      f.originalname,
-      f.path,
-      f.mimetype,
-      new Date()
-    ]);
-
-    await pool.query(
-      'INSERT INTO asset_documents (asset_id, file_name, file_path, mime_type, uploaded_at) VALUES ?',
-      [inserts]
-    );
-
-    res.json({
-      message: 'Files uploaded successfully',
-      files: req.files.map((f) => ({ 
-        name: f.originalname, 
-        url: `/uploads/documents/${f.filename}` 
-      })),
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Upload failed' });
-  }
-});
-
 
 router.get("/search", async (req, res) => {
   const { q } = req.query;
@@ -272,8 +285,5 @@ router.get("/search", async (req, res) => {
     res.status(500).json({ message: "Search failed" });
   }
 });
-
-
-
 
 export default router;

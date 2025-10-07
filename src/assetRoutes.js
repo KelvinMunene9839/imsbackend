@@ -1,27 +1,12 @@
 import express from 'express';
 import pool from './db.js';
-import multer from 'multer';
-import path from 'path';
 
 const router = express.Router();
 
-// Set up multer for file uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'uploads/'); // Directory to save uploaded files
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
-
-const upload = multer({ storage: storage });
-
 // Add a new asset with dynamic ownership based on investor shares
-router.post('/asset', upload.single('document'), async (req, res) => {
+router.post('/asset', async (req, res) => {
   const { name, value, contributions } = req.body;
-  const document = req.file ? req.file.path : null;
+  // FIXED: Remove file upload from this route - handle documents separately
   let parsedContributions;
   try {
     parsedContributions = JSON.parse(contributions);
@@ -42,8 +27,8 @@ router.post('/asset', upload.single('document'), async (req, res) => {
     // Start transaction
     await pool.query('START TRANSACTION');
 
-    // Insert the asset
-    const [result] = await pool.query('INSERT INTO assets (name, value, document) VALUES (?, ?, ?)', [name, value, document]);
+    // Insert the asset (without document field)
+    const [result] = await pool.query('INSERT INTO assets (name, value) VALUES (?, ?)', [name, value]);
     const assetId = result.insertId;
 
     // Insert ownerships based on contributions
@@ -64,7 +49,7 @@ router.post('/asset', upload.single('document'), async (req, res) => {
     // Commit transaction
     await pool.query('COMMIT');
 
-    res.status(201).json({ message: 'Asset and ownerships recorded.' });
+    res.status(201).json({ message: 'Asset and ownerships recorded.', assetId });
   } catch (err) {
     // Rollback transaction on error
     await pool.query('ROLLBACK');
@@ -115,6 +100,17 @@ router.put('/asset/:id', async (req, res) => {
   }
 });
 
+router.delete('/asset/:id',async(req,res)=>{
+  const id = req.params.id;
+  try {
+    await pool.query('DELETE FROM assets WHERE id = ?', [id]);
+    res.json({ message: 'Asset deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting asset:', err);
+    res.status(500).json({ message: 'Server error.' });
+  }
+});
+
 router.get('/investor/assets', async (req, res) => {
   const investorId = req.query.investorId;
   console.log('GET /investor/assets called with investorId:', investorId);
@@ -147,6 +143,7 @@ router.get('/investor/assets', async (req, res) => {
     res.status(500).json({ message: 'Server error.' });
   }
 });
+
 // Get total asset value
 router.get('/total-asset-value', async (req, res) => {
   try {
