@@ -46,4 +46,28 @@ router.post('/transaction', async (req, res) => {
   }
 });
 
+// Get latest announcements
+router.get('/announce/latest', async (req, res) => {
+  try {
+    // For now, return a static announcement. In a real app, this would fetch from a database
+    const announcements = [
+      {
+        id: 1,
+        title: "Welcome to the Investor Management System",
+        content: "Thank you for joining our platform. Your investments are secure and growing.",
+        created_at: new Date().toISOString()
+      },
+      {
+        id: 2,
+        title: "New Features Available",
+        content: "We've added new reporting features to help you track your investments better.",
+        created_at: new Date().toISOString()
+      }
+    ];
+    res.json(announcements);
+  } catch (err) {
+    res.status(500).json({ message: 'Server error.' });
+  }
+});
+
 export default router;
